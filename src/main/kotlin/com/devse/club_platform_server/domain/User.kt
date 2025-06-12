@@ -17,7 +17,7 @@ data class User(
     val email: String,
 
     @Column(nullable = false, length = 255)
-    val password: String,
+    var password: String,
 
     @Column(nullable = false, length = 50)
     val name: String,
@@ -26,16 +26,16 @@ data class User(
     val university: String,
 
     @Column(nullable = false, length = 100)
-    val department: String,
+    var department: String,
 
     @Column(nullable = false, length = 100)
-    val major: String,
+    var major: String,
 
     @Column(name = "student_id", nullable = false, length = 20)
     val studentId: String,
 
     @Column(name = "profile_image", length = 255)
-    val profileImage: String? = null,
+    var profileImage: String? = null,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
