@@ -207,7 +207,12 @@ class UserService(
         return filePath.toString()
     }
 
-    // 기존 비밀번호 검증 후 새 비밀번호로 변경
+    // 로그인 시 updatedAt이 갱신되지 않도록 별도 쿼리 사용
+    fun updateLastLoginAtOnly(userId: Long) {
+        userRepository.updateLastLoginTimeOnly(userId, java.time.LocalDateTime.now())
+    }
+
+    // 기존 비밀번호 검증 후 새 비밀번호로 변경 (updatedAt 갱신)
     fun changePasswordWithCheck(userId: Long, currentPassword: String, newPassword: String, confirmPassword: String) {
         val user = userRepository.findById(userId).orElseThrow {
             IllegalArgumentException("사용자를 찾을 수 없습니다.")
@@ -219,7 +224,7 @@ class UserService(
             throw IllegalArgumentException("새 비밀번호와 비밀번호 확인이 일치하지 않습니다.")
         }
         user.password = passwordEncoder.encode(newPassword)
-        userRepository.save(user)
+        userRepository.save(user) // 정보 변경 시에만 save 호출
     }
 
     // 비밀번호 검증 후 회원탈퇴
@@ -233,7 +238,7 @@ class UserService(
         userRepository.delete(user)
     }
 
-    // 프로필 사진 변경 (Base64 방식)
+    // 프로필 사진 변경 (Base64 방식, updatedAt 갱신)
     fun updateProfileImageBase64(userId: Long, base64Image: String): String {
         val user = userRepository.findById(userId).orElseThrow {
             IllegalArgumentException("사용자를 찾을 수 없습니다.")
@@ -255,17 +260,17 @@ class UserService(
         // 새 이미지 저장 (Base64)
         val newFileName = saveProfileImageFromBase64(base64Image)
         user.profileImage = newFileName
-        userRepository.save(user)
+        userRepository.save(user) // 정보 변경 시에만 save 호출
         return newFileName
     }
 
-    // 학과정보 변경
+    // 학과정보 변경 (updatedAt 갱신)
     fun updateDepartmentAndMajor(userId: Long, department: String, major: String) {
         val user = userRepository.findById(userId).orElseThrow {
             IllegalArgumentException("사용자를 찾을 수 없습니다.")
         }
         user.department = department
         user.major = major
-        userRepository.save(user)
+        userRepository.save(user) // 정보 변경 시에만 save 호출
     }
 }

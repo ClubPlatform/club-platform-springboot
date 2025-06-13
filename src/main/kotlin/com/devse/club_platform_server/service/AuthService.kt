@@ -14,7 +14,8 @@ import java.time.LocalDateTime
 class AuthService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val userService: UserService // 추가: UserService 주입
 ) {
 
     private val logger = LoggerFactory.getLogger(AuthService::class.java)
@@ -35,9 +36,8 @@ class AuthService(
         val accessToken = jwtTokenProvider.generateAccessToken(user.userId, user.email)
         val refreshToken = jwtTokenProvider.generateRefreshToken(user.userId, user.email)
 
-        // 마지막 로그인 시간 업데이트
-        val updatedUser = user.copy(lastLoginAt = LocalDateTime.now())
-        userRepository.save(updatedUser)
+        // 마지막 로그인 시간 업데이트 (updated_at 갱신 방지)
+        userService.updateLastLoginAtOnly(user.userId)
 
         logger.info("로그인 성공: userId=${user.userId}, email=${user.email}")
 

@@ -105,6 +105,7 @@ class AuthController(
 
         return try {
             val response = authService.login(request)
+            // 로그인 성공 시 UserService의 updateLastLoginAtOnly 호출
             ResponseEntity.ok(response)
 
         } catch (e: Exception) {

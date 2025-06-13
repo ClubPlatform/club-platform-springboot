@@ -46,5 +46,5 @@ data class User(
     val updatedAt: LocalDateTime? = LocalDateTime.now(),
 
     @Column(name = "last_login_at")
-    val lastLoginAt: LocalDateTime? = null
+    var lastLoginAt: LocalDateTime? = null
 )
