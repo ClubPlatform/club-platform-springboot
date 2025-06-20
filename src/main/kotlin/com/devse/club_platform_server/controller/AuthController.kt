@@ -1,6 +1,7 @@
 package com.devse.club_platform_server.controller
 
-import com.devse.club_platform_server.dto.*
+import com.devse.club_platform_server.dto.request.*
+import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.service.AuthService
 import com.devse.club_platform_server.service.UserService
 import jakarta.validation.Valid
@@ -157,7 +158,7 @@ class AuthController(
 
         return try {
             val userInfo = authService.getUserInfo(userId)
-            ResponseEntity.ok(ApiResponse.success(userInfo))
+            ResponseEntity.ok(ApiResponse.success(userInfo.toString()))
 
         } catch (e: Exception) {
             logger.error("사용자 정보 조회 실패: ${e.message}")

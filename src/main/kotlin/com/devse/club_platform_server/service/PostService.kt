@@ -9,6 +9,16 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
+/*
+게시글 작성 및 관리 서비스
+- 게시글 작성/수정/삭제 및 공지사항 설정
+- 게시판별 게시글 목록 조회 (일반/HOT/BEST)
+- 개인화된 게시글 목록 (내 글/댓글 단 글/스크랩)
+- 게시글 좋아요 및 스크랩 토글 관리
+- 조회수 증가 업데이트
+- 권한 기반 게시글 수정/삭제
+ */
+
 @Service
 @Transactional
 class PostService(

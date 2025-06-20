@@ -9,6 +9,12 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
+/*
+- 게시글 댓글 관리 서비스
+- 댓글 및 대댓글 작성/수정/삭제 처리
+- 댓글 좋아요 토글 및 반응 관리
+ */
+
 @Service
 @Transactional
 class CommentService(

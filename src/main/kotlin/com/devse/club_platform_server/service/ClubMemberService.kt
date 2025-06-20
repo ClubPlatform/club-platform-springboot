@@ -8,7 +8,13 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+
+/*
+동아리 멤버 관리 서비스
+- 동아리 멤버 목록 조회 및 역할 관리
+- 멤버 권한 변경 (일반회원 ↔ 스태프 ↔ 소유자)
+- 멤버 강퇴 및 자발적 탈퇴 처리
+ */
 
 @Service
 @Transactional
@@ -121,7 +127,6 @@ class ClubMemberService(
     fun removeMember(
         clubId: Long,
         targetUserId: Long,
-        request: RemoveMemberRequest,
         requestUserId: Long
     ): RemoveMemberResponse {
         // 동아리 존재 확인
@@ -153,7 +158,7 @@ class ClubMemberService(
         val removedMember = targetMembership.copy(status = MemberStatus.inactive)
         clubMemberRepository.save(removedMember)
 
-        logger.info("멤버 강퇴 완료: clubId=$clubId, targetUserId=$targetUserId, reason=${request.reason}")
+        logger.info("멤버 강퇴 완료: clubId=$clubId, targetUserId=$targetUserId")
 
         return RemoveMemberResponse(
             success = true,

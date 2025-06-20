@@ -38,7 +38,7 @@ class JwtTokenProvider {
 
     // Refresh Token 생성 (DB 저장 없이 긴 만료시간으로 생성)
     fun generateRefreshToken(userId: Long, email: String): String {
-        val now = Date()
+        val now             = Date()
         val expiryDate = Date(now.time + refreshTokenExpiration)
 
         return Jwts.builder()

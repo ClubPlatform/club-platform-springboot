@@ -1,13 +1,17 @@
 package com.devse.club_platform_server.service
 
 import com.devse.club_platform_server.domain.MemberStatus
-import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.BoardRepository
 import com.devse.club_platform_server.repository.ClubMemberRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+
+/*
+동아리 게시판 관리 서비스
+- 동아리별 게시판 목록 조회
+ */
 
 @Service
 @Transactional(readOnly = true)

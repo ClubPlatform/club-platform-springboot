@@ -1,6 +1,6 @@
 package com.devse.club_platform_server.exception
 
-import com.devse.club_platform_server.dto.RegisterResponse
+import com.devse.club_platform_server.dto.response.RegisterResponse
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

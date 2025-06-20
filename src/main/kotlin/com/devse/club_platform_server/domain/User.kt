@@ -5,6 +5,13 @@ import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
 import java.time.LocalDateTime
 
+/*
+사용자 정보를 관리하는 엔티티
+- 회원가입, 로그인 시 사용자 기본 정보 (이메일, 비밀번호) 저장
+- 대학교, 학과, 전공, 학번 등 학생 신분 정보 포함
+- 프로필 이미지 및 마지막 로그인 시간 추적
+ */
+
 @Entity
 @Table(name = "user")
 data class User(

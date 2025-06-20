@@ -3,6 +3,14 @@ package com.devse.club_platform_server.domain
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
+/*
+게시글 정보를 관리하는 엔티티
+- 동아리 게시판에 작성되는 게시글 저장
+- 조회수, 좋아요수, 댓글수 통계 관리
+- 공지글 여부 및 익명 작성 여부 설정
+- 게시글 작성자 및 작성 시간 추적
+ */
+
 @Entity
 @Table(name = "post")
 data class Post(

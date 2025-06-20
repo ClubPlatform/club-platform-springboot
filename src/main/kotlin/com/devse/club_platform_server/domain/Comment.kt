@@ -3,6 +3,14 @@ package com.devse.club_platform_server.domain
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
+/*
+댓글 정보를 관리하는 엔티티
+- 게시글에 달리는 댓글 및 대댓글 저장
+- 부모 댓글 참조를 통한 계층 구조 지원
+- 익명 댓글 작성 기능 지원
+- 댓글 작성자 및 작성 시간 추적
+ */
+
 @Entity
 @Table(name = "comment")
 data class Comment(

@@ -1,13 +1,21 @@
 package com.devse.club_platform_server.service
 
-import com.devse.club_platform_server.dto.*
+import com.devse.club_platform_server.dto.request.*
+import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.UserRepository
 import com.devse.club_platform_server.util.JwtTokenProvider
 import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+
+/*
+사용자 인증 및 토큰 관리 서비스
+- 이메일/비밀번호 기반 로그인 처리
+- JWT 액세스/리프레시 토큰 생성 및 갱신
+- 로그인 상태 관리 및 사용자 정보 조회
+- 보안 토큰 검증 및 인증 상태 유지
+ */
 
 @Service
 @Transactional
@@ -15,7 +23,7 @@ class AuthService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val userService: UserService // 추가: UserService 주입
+    private val userService: UserService
 ) {
 
     private val logger = LoggerFactory.getLogger(AuthService::class.java)

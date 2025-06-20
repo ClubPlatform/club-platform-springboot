@@ -74,7 +74,6 @@ class ClubMemberController(
     fun kickMember(
         @PathVariable clubId: Long,
         @PathVariable targetUserId: Long,
-        @RequestBody(required = false) request: RemoveMemberRequest?,
         authentication: Authentication
     ): ResponseEntity<RemoveMemberResponse> {
         val requestUserId = authentication.principal as Long
@@ -84,7 +83,6 @@ class ClubMemberController(
             val response = clubMemberService.removeMember(
                 clubId,
                 targetUserId,
-                request ?: RemoveMemberRequest(),
                 requestUserId
             )
             ResponseEntity.ok(response)

@@ -1,8 +1,8 @@
 package com.devse.club_platform_server.service
 
 import com.devse.club_platform_server.domain.User
-import com.devse.club_platform_server.dto.RegisterRequest
-import com.devse.club_platform_server.dto.RegisterResponse
+import com.devse.club_platform_server.dto.request.RegisterRequest
+import com.devse.club_platform_server.dto.response.RegisterResponse
 import com.devse.club_platform_server.repository.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -15,6 +15,16 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.*
+
+/*
+사용자 계정 및 프로필 관리 서비스
+- 신규 회원가입 처리 및 중복 검증
+- 프로필 이미지 업로드 (Multipart/Base64 지원)
+- 비밀번호 변경
+- 학과/전공 정보 수정
+- 계정 탈퇴 및 개인정보 삭제
+- 로그인 이력 관리
+ */
 
 @Service
 @Transactional

@@ -1,6 +1,8 @@
 package com.devse.club_platform_server.dto.response
-
-// 공통 API 응답 클래스
+/*
+범용 API 응답 클래스
+- 모든 API 엔드포인트에서 일관된 응답 형태를 제공할 때 사용
+ */
 data class ApiResponse<T>(
     val success: Boolean,
     val message: String,
@@ -25,7 +27,11 @@ data class ApiResponse<T>(
     }
 }
 
-// 단순 성공/실패 응답
+/*
+단순 성공/실패 응답 클래스
+- 별도 데이터 없이 처리 결과만 알려주는 API에서 사용
+- 삭제, 업데이트 등 단순 액션의 결과 반환 시 활용
+ */
 data class SimpleResponse(
     val success: Boolean,
     val message: String,

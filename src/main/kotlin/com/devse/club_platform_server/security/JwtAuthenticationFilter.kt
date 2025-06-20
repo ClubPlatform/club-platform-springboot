@@ -10,6 +10,15 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
+/*
+JWT 토큰 기반 인증 필터
+- HTTP 요청 헤더에서 Bearer 토큰 추출 및 검증
+- 유효한 JWT 토큰을 통한 사용자 인증 정보 설정
+- Spring Security Context에 인증 객체 등록
+- 모든 보호된 엔드포인트에 대한 토큰 기반 접근 제어
+- 인증 실패 시 예외 처리 및 로깅
+ */
+
 @Component
 class JwtAuthenticationFilter(
     private val jwtTokenProvider: JwtTokenProvider
