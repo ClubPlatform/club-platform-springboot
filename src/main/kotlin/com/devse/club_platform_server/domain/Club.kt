@@ -3,6 +3,15 @@ package com.devse.club_platform_server.domain
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
+/*
+동아리 정보를 관리하는 엔티티
+- 동아리 기본 정보 (이름, 설명, 카테고리, 학과, 동아리 로고)
+- 모임 장소, 시간, 회비 등 운영 정보
+- 가입 방식 (자유가입/승인제)
+- 동아리 생성자 및 활성화 상태 관리
+- 동아리별 고유 가입코드 (영문+숫자 8자리)
+ */
+
 @Entity
 @Table(name = "club")
 data class Club(
@@ -41,6 +50,9 @@ data class Club(
 
     @Column(name = "visibility", length = 255)
     val visibility: String? = null,
+
+    @Column(name = "invite_code", nullable = false, unique = true, length = 8)
+    val inviteCode: String,
 
     @Column(name = "created_by", nullable = false)
     val createdBy: Long,

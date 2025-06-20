@@ -30,6 +30,12 @@ interface ClubRepository : JpaRepository<Club, Long> {
     // 동아리명 중복 검사
     fun existsByName(name: String): Boolean
 
+    // 가입코드로 동아리 조회
+    fun findByInviteCode(inviteCode: String): Club?
+
+    // 가입코드 중복 검사
+    fun existsByInviteCode(inviteCode: String): Boolean
+
     // 내가 속한 동아리 조회
     @Query("""
         SELECT c FROM Club c 
@@ -72,4 +78,8 @@ interface ClubRepository : JpaRepository<Club, Long> {
     // 특정 동아리 조회 (활성화된 것만)
     @Query("SELECT c FROM Club c WHERE c.clubId = :clubId AND c.isActive = true")
     fun findActiveClubById(@Param("clubId") clubId: Long): Club?
+
+    // 활성화된 동아리 중 가입코드로 조회 (대소문자 무시)
+    @Query("SELECT c FROM Club c WHERE UPPER(c.inviteCode) = UPPER(:inviteCode) AND c.isActive = true")
+    fun findActiveClubByInviteCode(@Param("inviteCode") inviteCode: String): Club?
 }

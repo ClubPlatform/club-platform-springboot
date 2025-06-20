@@ -1,62 +1,32 @@
 package com.devse.club_platform_server.util
 
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
-import java.util.*
-import javax.crypto.Cipher
-import javax.crypto.spec.SecretKeySpec
+import kotlin.random.Random
 
 @Component
 class InviteCodeGenerator {
 
-    @Value("\${app.invite.secret-key}")
-    private lateinit var secretKey: String
+    private val characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    private val codeLength = 8
 
-    private val algorithm = "AES"
-
-    // 동아리 ID를 암호화하여 초대 코드 생성
-    fun generateInviteCode(clubId: Long): String {
-        return try {
-            val plainText = "${clubId}:${System.currentTimeMillis()}" // ID와 타임스탬프 조합
-            val cipher = Cipher.getInstance(algorithm)
-            val keySpec = SecretKeySpec(secretKey.toByteArray().take(16).toByteArray(), algorithm)
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec)
-
-            val encrypted = cipher.doFinal(plainText.toByteArray())
-            Base64.getUrlEncoder().withoutPadding().encodeToString(encrypted)
-        } catch (e: Exception) {
-            throw RuntimeException("초대 코드 생성 실패", e)
-        }
+    /*
+     동아리별 고유한 8자리 가입코드 생성
+     - 영문 대문자와 숫자 조합
+     - 중복 방지를 위해 호출하는 쪽에서 유니크 체크 필요
+     */
+    fun generateUniqueInviteCode(): String {
+        return (1..codeLength)
+            .map { characters[Random.nextInt(characters.length)] }
+            .joinToString("")
     }
 
-    // 초대 코드를 복호화하여 동아리 ID 추출
-    fun decodeInviteCode(inviteCode: String): Long? {
-        return try {
-            val cipher = Cipher.getInstance(algorithm)
-            val keySpec = SecretKeySpec(secretKey.toByteArray().take(16).toByteArray(), algorithm)
-            cipher.init(Cipher.DECRYPT_MODE, keySpec)
-
-            val encrypted = Base64.getUrlDecoder().decode(inviteCode)
-            val decrypted = String(cipher.doFinal(encrypted))
-
-            // "clubId:timestamp" 형태에서 clubId만 추출
-            val parts = decrypted.split(":")
-            if (parts.size >= 2) {
-                val clubId = parts[0].toLong()
-                val timestamp = parts[1].toLong()
-
-                // 7일 이내 생성된 코드만 유효
-                val sevenDaysAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)
-                if (timestamp > sevenDaysAgo) {
-                    clubId
-                } else {
-                    null // 만료된 코드
-                }
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null // 잘못된 코드
-        }
+    /*
+     가입코드 유효성 검사
+     - 8자리 영문 대문자 + 숫자 조합인지 확인
+     */
+    fun isValidInviteCode(code: String): Boolean {
+        val trimmedCode = code.trim().uppercase()
+        if (trimmedCode.length != codeLength) return false
+        return trimmedCode.all { it.isLetterOrDigit() && (it.isUpperCase() || it.isDigit()) }
     }
 }

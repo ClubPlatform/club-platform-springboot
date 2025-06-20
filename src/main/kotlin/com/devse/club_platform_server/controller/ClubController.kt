@@ -1,3 +1,5 @@
+// ClubController.kt - 초대 링크 관련 API 제거
+
 package com.devse.club_platform_server.controller
 
 import com.devse.club_platform_server.dto.request.*
@@ -150,25 +152,25 @@ class ClubController(
         }
     }
 
-    // 초대 링크 생성
-    @PostMapping("/{clubId}/invite")
-    fun generateInviteLink(
+    // 가입코드 조회
+    @GetMapping("/{clubId}/invite-code")
+    fun getInviteCode(
         @PathVariable clubId: Long,
         authentication: Authentication
-    ): ResponseEntity<InviteLinkResponse> {
+    ): ResponseEntity<InviteCodeResponse> {
         val userId = authentication.principal as Long
-        logger.info("초대 링크 생성 요청: clubId=$clubId, 요청자: $userId")
+        logger.info("가입코드 조회 요청: clubId=$clubId, 요청자: $userId")
 
         return try {
-            val response = clubService.generateInviteLink(clubId, userId)
+            val response = clubService.getInviteCode(clubId, userId)
             ResponseEntity.ok(response)
 
         } catch (e: Exception) {
-            logger.error("초대 링크 생성 실패: ${e.message}")
+            logger.error("가입코드 조회 실패: ${e.message}")
 
-            val errorResponse = InviteLinkResponse(
+            val errorResponse = InviteCodeResponse(
                 success = false,
-                message = e.message ?: "초대 링크를 생성할 수 없습니다."
+                message = e.message ?: "가입코드를 조회할 수 없습니다."
             )
 
             ResponseEntity.badRequest().body(errorResponse)

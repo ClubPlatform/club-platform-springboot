@@ -16,6 +16,16 @@ import java.nio.file.Paths
 import java.time.LocalDateTime
 import java.util.*
 
+/*
+동아리 생성 및 운영 관리 서비스
+- 신규 동아리 개설 및 기본 설정 구성
+- 동아리 정보 수정 및 운영 상태 관리
+- 동아리 목록 조회 및 검색
+- 초대 코드 생성 및 가입 처리
+- 동아리 로고 이미지 업로드 및 관리
+- 동아리 비활성화(삭제) 처리
+ */
+
 @Service
 @Transactional
 class ClubService(
@@ -38,7 +48,7 @@ class ClubService(
     @Value("\${app.invite.deep-link-scheme:clubapp}")
     private lateinit var deepLinkScheme: String
 
-    // 동아리 생성
+    // 동아리 생성 - 가입코드만 제공
     fun createClub(request: CreateClubRequest, userId: Long): CreateClubResponse {
         logger.info("동아리 생성 시작: ${request.name}, 생성자: $userId")
 
@@ -60,6 +70,9 @@ class ClubService(
             saveClubLogo(it)
         }
 
+        // 고유한 가입코드 생성 (중복 체크)
+        val inviteCode = generateUniqueInviteCode()
+
         // 동아리 생성
         val club = Club(
             name = request.name,
@@ -72,6 +85,7 @@ class ClubService(
             fee = request.fee,
             joinMethod = request.joinMethod,
             visibility = request.visibility,
+            inviteCode = inviteCode,
             createdBy = userId,
             createdAt = LocalDateTime.now()
         )
@@ -89,16 +103,36 @@ class ClubService(
 
         clubMemberRepository.save(ownerMember)
 
-        // 초대 코드 생성
-        val inviteCode = inviteCodeGenerator.generateInviteCode(savedClub.clubId)
-
-        logger.info("동아리 생성 완료: clubId=${savedClub.clubId}")
+        logger.info("동아리 생성 완료: clubId=${savedClub.clubId}, inviteCode=$inviteCode")
 
         return CreateClubResponse(
             success = true,
             message = "동아리가 성공적으로 생성되었습니다.",
             clubId = savedClub.clubId,
             inviteCode = inviteCode
+        )
+    }
+
+    // 가입코드 조회
+    fun getInviteCode(clubId: Long, userId: Long): InviteCodeResponse {
+        val club = clubRepository.findByIdOrNull(clubId)
+            ?: throw IllegalArgumentException("존재하지 않는 동아리입니다.")
+
+        // 비활성화된 동아리 체크
+        if (!club.isActive) {
+            throw IllegalArgumentException("비활성화된 동아리입니다.")
+        }
+
+        // 권한 확인 (멤버만 가입코드 조회 가능)
+        val membership = clubMemberRepository.findByUserIdAndClubIdAndStatus(userId, clubId, MemberStatus.active)
+            ?: throw IllegalArgumentException("동아리 멤버가 아닙니다.")
+
+        logger.info("가입코드 조회 완료: clubId=$clubId, inviteCode=${club.inviteCode}")
+
+        return InviteCodeResponse(
+            success = true,
+            message = "동아리 가입코드입니다.",
+            inviteCode = club.inviteCode
         )
     }
 
@@ -138,6 +172,7 @@ class ClubService(
             fee = club.fee,
             joinMethod = club.joinMethod,
             visibility = club.visibility,
+            inviteCode =  club.inviteCode,
             createdBy = club.createdBy,
             createdAt = club.createdAt,
             updatedAt = club.updatedAt,
@@ -185,6 +220,7 @@ class ClubService(
                 fee = club.fee,
                 joinMethod = club.joinMethod,
                 visibility = club.visibility,
+                inviteCode =  club.inviteCode,
                 createdBy = club.createdBy,
                 createdAt = club.createdAt,
                 updatedAt = club.updatedAt,
@@ -226,6 +262,7 @@ class ClubService(
                 fee = club.fee,
                 joinMethod = club.joinMethod,
                 visibility = club.visibility,
+                inviteCode =  club.inviteCode,
                 createdBy = club.createdBy,
                 createdAt = club.createdAt,
                 updatedAt = club.updatedAt,
@@ -316,47 +353,21 @@ class ClubService(
         logger.info("동아리 삭제 완료: clubId=$clubId")
     }
 
-    // 초대 링크 생성
-    fun generateInviteLink(clubId: Long, userId: Long): InviteLinkResponse {
-        val club = clubRepository.findByIdOrNull(clubId)
-            ?: throw IllegalArgumentException("존재하지 않는 동아리입니다.")
-
-        // 권한 확인 (멤버만 초대 링크 생성 가능)
-        val membership = clubMemberRepository.findByUserIdAndClubIdAndStatus(userId, clubId, MemberStatus.active)
-            ?: throw IllegalArgumentException("동아리 멤버가 아닙니다.")
-
-        val inviteCode = inviteCodeGenerator.generateInviteCode(clubId)
-        val expiresAt = LocalDateTime.now().plusDays(7)
-
-        // 동적으로 초대 URL 생성
-        val inviteUrl = generateInviteUrl(inviteCode)
-
-        logger.info("초대 링크 생성 완료: clubId=$clubId")
-
-        return InviteLinkResponse(
-            success = true,
-            message = "초대 링크가 생성되었습니다.",
-            inviteCode = inviteCode,
-            inviteUrl = inviteUrl,
-            expiresAt = expiresAt
-        )
-    }
-
     // 초대 코드로 동아리 가입
     fun joinClubByInviteCode(request: JoinClubRequest, userId: Long): JoinClubResponse {
-        // 초대 코드 유효성 검사 및 동아리 ID 추출
-        val clubId = inviteCodeGenerator.decodeInviteCode(request.inviteCode)
-            ?: throw IllegalArgumentException("유효하지 않거나 만료된 초대 코드입니다.")
+        val inputCode = request.inviteCode.trim().uppercase()
 
-        val club = clubRepository.findByIdOrNull(clubId)
-            ?: throw IllegalArgumentException("존재하지 않는 동아리입니다.")
-
-        if (!club.isActive) {
-            throw IllegalArgumentException("비활성화된 동아리입니다.")
+        // 가입코드 유효성 검사
+        if (!inviteCodeGenerator.isValidInviteCode(inputCode)) {
+            throw IllegalArgumentException("유효하지 않은 가입코드 형식입니다.")
         }
 
+        // 가입코드로 동아리 조회
+        val club = clubRepository.findActiveClubByInviteCode(inputCode)
+            ?: throw IllegalArgumentException("유효하지 않은 가입코드이거나 존재하지 않는 동아리입니다.")
+
         // 이미 가입했는지 확인
-        val existingMembership = clubMemberRepository.findByUserIdAndClubId(userId, clubId)
+        val existingMembership = clubMemberRepository.findByUserIdAndClubId(userId, club.clubId)
         if (existingMembership != null) {
             if (existingMembership.status == MemberStatus.active) {
                 throw IllegalArgumentException("이미 가입한 동아리입니다.")
@@ -371,7 +382,7 @@ class ClubService(
                 return JoinClubResponse(
                     success = true,
                     message = "동아리에 재가입되었습니다.",
-                    clubId = clubId,
+                    clubId = club.clubId,
                     role = reactivatedMember.role
                 )
             }
@@ -380,7 +391,7 @@ class ClubService(
         // 새 멤버 등록
         val newMember = ClubMember(
             userId = userId,
-            clubId = clubId,
+            clubId = club.clubId,
             role = MemberRole.member,
             status = MemberStatus.active,
             joinedAt = LocalDateTime.now()
@@ -388,12 +399,12 @@ class ClubService(
 
         clubMemberRepository.save(newMember)
 
-        logger.info("동아리 가입 완료: clubId=$clubId, userId=$userId")
+        logger.info("동아리 가입 완료: clubId=${club.clubId}, userId=$userId")
 
         return JoinClubResponse(
             success = true,
             message = "동아리에 가입되었습니다.",
-            clubId = clubId,
+            clubId = club.clubId,
             role = MemberRole.member
         )
     }
@@ -420,13 +431,14 @@ class ClubService(
         }
     }
 
-    // 초대 URL 생성 (환경에 따라 다른 방식 사용)
-    private fun generateInviteUrl(inviteCode: String): String {
-        return when {
-            // 안드로이드 앱용 딥링크
-            deepLinkScheme.isNotEmpty() -> "$deepLinkScheme://join?code=$inviteCode"
-            // 웹용 또는 Universal Link
-            else -> "$baseUrl/api/club/join?code=$inviteCode"
-        }
+    // 고유한 가입코드 생성 (중복 체크)
+    private fun generateUniqueInviteCode(): String {
+        var inviteCode: String
+        do {
+            inviteCode = inviteCodeGenerator.generateUniqueInviteCode()
+        } while (clubRepository.existsByInviteCode(inviteCode))
+
+        return inviteCode
     }
+
 }
