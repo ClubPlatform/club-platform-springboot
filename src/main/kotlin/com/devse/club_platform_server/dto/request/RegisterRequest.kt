@@ -1,7 +1,13 @@
-package com.devse.club_platform_server.dto
+package com.devse.club_platform_server.dto.request
 
 import jakarta.validation.constraints.*
 
+/*
+회원가입 요청 DTO
+- 신규 사용자가 계정을 생성할 때 사용
+- 대학생 인증을 위한 학교/학과/학번 정보 포함
+- 프로필 이미지 업로드 지원 (Base64 인코딩)
+ */
 data class RegisterRequest(
     @field:NotBlank(message = "이메일은 필수입니다")
     @field:Email(message = "유효한 이메일 형식이 아닙니다")
@@ -34,35 +40,3 @@ data class RegisterRequest(
 
     val profileImage: String? = null // Base64 인코딩된 이미지
 )
-
-data class RegisterResponse(
-    val success: Boolean,
-    val message: String,
-    val userId: Long? = null
-)
-
-data class ApiResponse<T>(
-    val success: Boolean,
-    val message: String,
-    val data: T? = null
-) {
-    companion object {
-        fun <T> success(data: T): ApiResponse<T> = ApiResponse(
-            success = true,
-            message = "성공",
-            data = data
-        )
-
-        fun <T> success(message: String, data: T): ApiResponse<T> = ApiResponse(
-            success = true,
-            message = message,
-            data = data
-        )
-
-        fun <T> error(message: String): ApiResponse<T> = ApiResponse(
-            success = false,
-            message = message,
-            data = null
-        )
-    }
-}
