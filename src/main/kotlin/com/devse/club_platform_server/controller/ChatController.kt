@@ -1,9 +1,5 @@
 package com.devse.club_platform_server.controller
 
-<<<<<<< HEAD
-class ChatController {
-    // MVP 기능이 아니므로 다음 버전에 추가 예정
-=======
 import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.service.ChatService
@@ -229,5 +225,4 @@ class ChatWebSocketController(
         // 타이핑 상태를 다른 사용자들에게 브로드캐스트
         // 실제 구현은 필요에 따라 추가
     }
->>>>>>> cd5c9f27f584421e6539892fb178ea01335a5c1e
 }
