@@ -27,7 +27,8 @@ class PostService(
     private val scrapRepository: ScrapRepository,
     private val userRepository: UserRepository,
     private val clubMemberRepository: ClubMemberRepository,
-    private val boardService: BoardService
+    private val boardService: BoardService,
+    private val notificationEventService: NotificationEventService
 ) {
 
     private val logger = LoggerFactory.getLogger(PostService::class.java)
@@ -57,6 +58,8 @@ class PostService(
         )
 
         val savedPost = postRepository.save(post)
+
+        notificationEventService.triggerPostNotification(savedPost.postId)
 
         logger.info("게시글 작성 완료: postId=${savedPost.postId}")
 

@@ -154,6 +154,7 @@ class NotificationService(
                         message = message
                     )
                 )
+                logger.info("게시글 작성자에게 댓글 알림 생성: postAuthor=${post.authorId}, commentId=$commentId")
             }
 
             // 대댓글인 경우, 부모 댓글 작성자에게도 알림
@@ -184,7 +185,7 @@ class NotificationService(
             val board = boardRepository.findByIdOrNull(post.boardId) ?: return
 
             // 공지사항만 알림 생성
-            if (board.type == BoardType.notice) {
+            if (board.type == BoardType.notice || post.isNotice == true) {
                 // 해당 동아리의 모든 활성 멤버에게 알림
                 val activeMembers = clubMemberRepository.findByClubIdAndStatusOrderByJoinedAtDesc(
                     board.clubId, MemberStatus.active

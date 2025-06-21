@@ -23,7 +23,8 @@ class CommentService(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
     private val clubMemberRepository: ClubMemberRepository,
-    private val boardService: BoardService
+    private val boardService: BoardService,
+    private val notificationEventService: NotificationEventService
 ) {
 
     private val logger = LoggerFactory.getLogger(CommentService::class.java)
@@ -58,6 +59,8 @@ class CommentService(
         )
 
         val savedComment = commentRepository.save(comment)
+
+        notificationEventService.triggerCommentNotification(savedComment.commentId)
 
         // 게시글의 댓글 수 업데이트
         val commentCount = commentRepository.countByPostId(postId).toInt()
