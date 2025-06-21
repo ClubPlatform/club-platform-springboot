@@ -89,7 +89,8 @@ class ChatService(
 
         val chatRoomInfos = chatRooms.map { chatRoom ->
             val memberCount = chatRoomMemberRepository.countByChatRoomId(chatRoom.chatRoomId)
-            val lastMessage = messageRepository.findTopByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoom.chatRoomId)
+            val lastMessage =
+                messageRepository.findTopByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoom.chatRoomId)
             val unreadCount = messageRepository.countUnreadMessages(chatRoom.chatRoomId, userId)
 
             // 채팅방 이름 설정 (개인 채팅의 경우 상대방 이름)
@@ -264,6 +265,8 @@ class ChatService(
         messagingTemplate.convertAndSend("/topic/chat/$chatRoomId", webSocketMessage)
     }
 
+    // ChatService.kt의 deleteMessage 메서드 수정 부분
+
     // 메시지 삭제 (논리적 삭제)
     fun deleteMessage(messageId: Long, userId: Long) {
         val message = messageRepository.findById(messageId).orElseThrow {
@@ -275,12 +278,11 @@ class ChatService(
             throw IllegalArgumentException("메시지를 삭제할 권한이 없습니다.")
         }
 
-        val deletedMessage = message.copy(
-            isDeleted = true,
-            content = "삭제된 메시지입니다.",
-            updatedAt = LocalDateTime.now()
-        )
-        messageRepository.save(deletedMessage)
+        // 직접 필드 수정 방식으로 변경
+        message.isDeleted = true
+        message.content = "삭제된 메시지입니다."
+        message.updatedAt = LocalDateTime.now()
+        messageRepository.save(message)
 
         // WebSocket으로 삭제 알림 전송
         val webSocketMessage = WebSocketMessage(

@@ -9,7 +9,7 @@ import java.time.LocalDateTime
     name = "message_read_status",
     uniqueConstraints = [UniqueConstraint(columnNames = ["message_id", "user_id"])]
 )
-data class MessageReadStatus(
+class MessageReadStatus(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,

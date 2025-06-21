@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "chat_room_member")
-data class ChatRoomMember(
+class ChatRoomMember(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "member_id")
@@ -23,4 +23,20 @@ data class ChatRoomMember(
 
     @Column(name = "last_read_at")
     var lastReadAt: LocalDateTime? = null
-)
+) {
+    fun copy(
+        memberId: Long = this.memberId,
+        chatRoomId: Long = this.chatRoomId,
+        userId: Long = this.userId,
+        joinedAt: LocalDateTime = this.joinedAt,
+        lastReadAt: LocalDateTime? = this.lastReadAt
+    ): ChatRoomMember {
+        return ChatRoomMember(
+            memberId = memberId,
+            chatRoomId = chatRoomId,
+            userId = userId,
+            joinedAt = joinedAt,
+            lastReadAt = lastReadAt
+        )
+    }
+}

@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "chat_room")
-data class ChatRoom(
+class ChatRoom(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chat_room_id")
@@ -27,7 +27,25 @@ data class ChatRoom(
 
     @Column(name = "updated_at")
     val updatedAt: LocalDateTime? = null
-)
+) {
+    fun copy(
+        chatRoomId: Long = this.chatRoomId,
+        name: String? = this.name,
+        type: ChatRoomType = this.type,
+        lastMessageAt: LocalDateTime? = this.lastMessageAt,
+        createdAt: LocalDateTime = this.createdAt,
+        updatedAt: LocalDateTime? = this.updatedAt
+    ): ChatRoom {
+        return ChatRoom(
+            chatRoomId = chatRoomId,
+            name = name,
+            type = type,
+            lastMessageAt = lastMessageAt,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        )
+    }
+}
 
 enum class ChatRoomType {
     personal, group
