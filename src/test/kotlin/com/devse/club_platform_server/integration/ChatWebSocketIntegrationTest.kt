@@ -1,8 +1,8 @@
 package com.devse.club_platform_server.integration
 
 import com.devse.club_platform_server.domain.User
-import com.devse.club_platform_server.dto.LoginRequest
-import com.devse.club_platform_server.dto.RegisterRequest
+import com.devse.club_platform_server.dto.request.LoginRequest
+import com.devse.club_platform_server.dto.request.RegisterRequest
 import com.devse.club_platform_server.dto.request.SendMessageRequest
 import com.devse.club_platform_server.dto.response.WebSocketMessage
 import com.devse.club_platform_server.repository.UserRepository

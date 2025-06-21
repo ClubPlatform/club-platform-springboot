@@ -1,7 +1,7 @@
 package com.devse.club_platform_server.integration
 
 import com.devse.club_platform_server.domain.User
-import com.devse.club_platform_server.dto.LoginRequest
+import com.devse.club_platform_server.dto.request.LoginRequest
 import com.devse.club_platform_server.dto.request.CreateChatRoomRequest
 import com.devse.club_platform_server.dto.request.SendMessageRequest
 import com.devse.club_platform_server.repository.UserRepository
