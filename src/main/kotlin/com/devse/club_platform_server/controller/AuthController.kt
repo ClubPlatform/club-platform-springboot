@@ -158,7 +158,7 @@ class AuthController(
 
         return try {
             val userInfo = authService.getUserInfo(userId)
-            ResponseEntity.ok(ApiResponse.success(userInfo.toString()))
+            ResponseEntity.ok(ApiResponse.success("사용자 정보 조회 성공", userInfo))
 
         } catch (e: Exception) {
             logger.error("사용자 정보 조회 실패: ${e.message}")
