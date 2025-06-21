@@ -14,10 +14,10 @@ class JwtTokenProvider {
     private lateinit var jwtSecret: String
 
     @Value("\${jwt.access-token-expiration}")
-    private var accessTokenExpiration: Long = 3600000 // 1시간 (밀리초)
+    private var accessTokenExpiration: Long = 7776000000 // 90일 (밀리초)
 
     @Value("\${jwt.refresh-token-expiration}")
-    private var refreshTokenExpiration: Long = 2592000000 // 30일 (밀리초)
+    private var refreshTokenExpiration: Long = 7776000000 // 90일 (밀리초)
 
     private val key: Key by lazy { Keys.hmacShaKeyFor(jwtSecret.toByteArray()) }
 
