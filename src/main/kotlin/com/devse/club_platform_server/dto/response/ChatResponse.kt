@@ -14,7 +14,8 @@ data class ChatRoomInfo(
     val lastMessage: MessageInfo?,
     val unreadCount: Long,
     val createdAt: LocalDateTime,
-    val members: List<ChatMemberInfo> = emptyList()
+    val members: List<ChatMemberInfo> = emptyList(),
+    val currentUserId: Long? = null
 )
 
 // 채팅 멤버 정보
