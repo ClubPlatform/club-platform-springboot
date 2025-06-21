@@ -2,8 +2,6 @@ package com.devse.club_platform_server.repository
 
 import com.devse.club_platform_server.domain.Notification
 import com.devse.club_platform_server.domain.NotificationType
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -14,14 +12,13 @@ import org.springframework.stereotype.Repository
 interface NotificationRepository : JpaRepository<Notification, Long> {
 
     // 특정 사용자의 알림 목록 조회 (최신순)
-    fun findByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<Notification>
+    fun findByUserIdOrderByCreatedAtDesc(userId: Long): List<Notification>
 
     // 특정 사용자의 특정 타입 알림 조회
     fun findByUserIdAndTypeOrderByCreatedAtDesc(
         userId: Long,
         type: NotificationType,
-        pageable: Pageable
-    ): Page<Notification>
+    ): List<Notification>
 
     // 읽지 않은 알림 개수 조회
     fun countByUserIdAndIsReadFalse(userId: Long): Long

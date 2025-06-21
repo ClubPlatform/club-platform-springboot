@@ -24,15 +24,13 @@ class NotificationController(
     @GetMapping
     fun getNotifications(
         @RequestParam(required = false) type: NotificationType?,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "20") size: Int,
         authentication: Authentication
     ): ResponseEntity<NotificationListResponse> {
         val userId = authentication.principal as Long
-        logger.info("알림 목록 조회: userId=$userId, type=$type, page=$page, size=$size")
+        logger.info("알림 목록 조회: userId=$userId, type=$type")
 
         return try {
-            val response = notificationService.getNotifications(userId, type, page, size)
+            val response = notificationService.getNotifications(userId, type)
             ResponseEntity.ok(response)
 
         } catch (e: Exception) {

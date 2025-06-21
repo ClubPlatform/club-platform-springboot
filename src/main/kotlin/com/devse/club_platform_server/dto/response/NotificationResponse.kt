@@ -19,16 +19,12 @@ data class NotificationInfo(
 
 /*
 알림 목록 조회 응답 DTO
-- 페이징된 알림 목록을 반환할 때 사용
+- 알림 목록을 반환할 때 사용
  */
 data class NotificationListResponse(
     val success: Boolean,
     val message: String,
     val notifications: List<NotificationInfo> = emptyList(),
-    val totalElements: Long = 0,
-    val totalPages: Int = 0,
-    val currentPage: Int = 0,
-    val pageSize: Int = 0,
     val unreadCount: Long = 0
 )
 

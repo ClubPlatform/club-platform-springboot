@@ -5,8 +5,6 @@ import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.*
 import org.slf4j.LoggerFactory
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
@@ -39,19 +37,16 @@ class NotificationService(
     @Transactional(readOnly = true)
     fun getNotifications(
         userId: Long,
-        type: NotificationType?,
-        page: Int = 0,
-        size: Int = 20
+        type: NotificationType?
     ): NotificationListResponse {
-        val pageable: Pageable = PageRequest.of(page, size)
 
-        val notificationsPage = if (type != null) {
-            notificationRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type, pageable)
+        val notifications = if (type != null) {
+            notificationRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type)
         } else {
-            notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+            notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
         }
 
-        val notificationInfos = notificationsPage.content.map { notification ->
+        val notificationInfos = notifications.map { notification ->
             NotificationInfo(
                 notificationId = notification.notificationId,
                 type = notification.type,
@@ -74,10 +69,6 @@ class NotificationService(
             success = true,
             message = "알림 목록 조회 성공",
             notifications = notificationInfos,
-            totalElements = notificationsPage.totalElements,
-            totalPages = notificationsPage.totalPages,
-            currentPage = page,
-            pageSize = size,
             unreadCount = unreadCount
         )
     }
