@@ -88,14 +88,43 @@ class ChatService(
         val chatRooms = chatRoomRepository.findByUserId(userId)
 
         val chatRoomInfos = chatRooms.map { chatRoom ->
-            val memberCount = chatRoomMemberRepository.countByChatRoomId(chatRoom.chatRoomId)
+            val members = chatRoomMemberRepository.findByChatRoomId(chatRoom.chatRoomId)
+            val memberCount = members.size.toLong()
+
+            // 멤버 정보 생성 (개인 채팅의 경우 상대방 정보만 포함)
+            val memberInfos = if (chatRoom.type == ChatRoomType.personal) {
+                members.filter { it.userId != userId }.mapNotNull { member ->
+                    userRepository.findById(member.userId).orElse(null)?.let { user ->
+                        ChatMemberInfo(
+                            userId = user.userId,
+                            userName = user.name,
+                            profileImage = user.profileImage,
+                            joinedAt = member.joinedAt,
+                            lastReadAt = member.lastReadAt
+                        )
+                    }
+                }
+            } else {
+                members.mapNotNull { member ->
+                    userRepository.findById(member.userId).orElse(null)?.let { user ->
+                        ChatMemberInfo(
+                            userId = user.userId,
+                            userName = user.name,
+                            profileImage = user.profileImage,
+                            joinedAt = member.joinedAt,
+                            lastReadAt = member.lastReadAt
+                        )
+                    }
+                }
+            }
+
             val lastMessage =
                 messageRepository.findTopByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoom.chatRoomId)
             val unreadCount = messageRepository.countUnreadMessages(chatRoom.chatRoomId, userId)
 
             // 채팅방 이름 설정 (개인 채팅의 경우 상대방 이름)
             val displayName = if (chatRoom.type == ChatRoomType.personal && chatRoom.name == null) {
-                getPersonalChatRoomName(chatRoom.chatRoomId, userId)
+                memberInfos.firstOrNull()?.userName ?: "알 수 없음"
             } else {
                 chatRoom.name ?: "채팅방"
             }
@@ -107,7 +136,9 @@ class ChatService(
                 memberCount = memberCount,
                 lastMessage = lastMessage?.let { convertToMessageInfo(it, userId) },
                 unreadCount = unreadCount,
-                createdAt = chatRoom.createdAt
+                createdAt = chatRoom.createdAt,
+                members = memberInfos,
+                currentUserId = userId
             )
         }
 
@@ -162,7 +193,8 @@ class ChatService(
             lastMessage = lastMessage?.let { convertToMessageInfo(it, userId) },
             unreadCount = unreadCount,
             createdAt = chatRoom.createdAt,
-            members = memberInfos
+            members = memberInfos,
+            currentUserId = userId
         )
     }
 
@@ -264,8 +296,6 @@ class ChatService(
 
         messagingTemplate.convertAndSend("/topic/chat/$chatRoomId", webSocketMessage)
     }
-
-    // ChatService.kt의 deleteMessage 메서드 수정 부분
 
     // 메시지 삭제 (논리적 삭제)
     fun deleteMessage(messageId: Long, userId: Long) {
