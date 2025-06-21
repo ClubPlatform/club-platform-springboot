@@ -33,7 +33,8 @@ class ClubService(
     private val clubMemberRepository: ClubMemberRepository,
     private val clubCategoryRepository: ClubCategoryRepository,
     private val userRepository: UserRepository,
-    private val inviteCodeGenerator: InviteCodeGenerator
+    private val inviteCodeGenerator: InviteCodeGenerator,
+    private val boardService: BoardService
 ) {
 
     private val logger = LoggerFactory.getLogger(ClubService::class.java)
@@ -102,6 +103,15 @@ class ClubService(
         )
 
         clubMemberRepository.save(ownerMember)
+
+        // 기본 게시판 생성 (공지사항, 자유게시판, 정보공유)
+        try {
+            boardService.createDefaultBoards(savedClub.clubId)
+            logger.info("기본 게시판 생성 완료: clubId=${savedClub.clubId}")
+        } catch (e: Exception) {
+            logger.error("기본 게시판 생성 실패: clubId=${savedClub.clubId}, error=${e.message}")
+            // 게시판 생성 실패가 동아리 생성을 막지 않도록 함
+        }
 
         logger.info("동아리 생성 완료: clubId=${savedClub.clubId}, inviteCode=$inviteCode")
 
