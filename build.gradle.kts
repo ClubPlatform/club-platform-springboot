@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.devse"
-version = "0.0.2-SNAPSHOT"
+version = "0.0.4-SNAPSHOT"
 
 java {
     toolchain {
