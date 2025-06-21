@@ -23,19 +23,31 @@ class JwtAuthenticationFilter(
         try {
             val jwt = getJwtFromRequest(request)
 
-            if (jwt != null && jwtTokenProvider.validateToken(jwt)) {
-                val userId = jwtTokenProvider.getUserIdFromToken(jwt)
-                val email = jwtTokenProvider.getEmailFromToken(jwt)
+            if (jwt != null) {
+                logger.info("JWT 토큰 발견: ${jwt.take(20)}...")
 
-                // 간단한 인증 객체 생성
-                val authentication = UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    emptyList()
-                )
-                authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
+                if (jwtTokenProvider.validateToken(jwt)) {
+                    val userId = jwtTokenProvider.getUserIdFromToken(jwt)
+                    val email = jwtTokenProvider.getEmailFromToken(jwt)
 
-                SecurityContextHolder.getContext().authentication = authentication
+                    logger.info("JWT 토큰 검증 성공: userId=$userId, email=$email")
+
+                    // 간단한 인증 객체 생성
+                    val authentication = UsernamePasswordAuthenticationToken(
+                        userId,
+                        null,
+                        emptyList()
+                    )
+                    authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
+
+                    SecurityContextHolder.getContext().authentication = authentication
+
+                    logger.info("SecurityContext에 인증 정보 설정 완료: principal=$userId")
+                } else {
+                    logger.warn("JWT 토큰 검증 실패")
+                }
+            } else {
+                logger.debug("Authorization 헤더에 JWT 토큰이 없음")
             }
         } catch (ex: Exception) {
             logger.error("사용자 인증을 설정할 수 없습니다", ex)
@@ -46,6 +58,8 @@ class JwtAuthenticationFilter(
 
     private fun getJwtFromRequest(request: HttpServletRequest): String? {
         val bearerToken = request.getHeader("Authorization")
+        logger.debug("Authorization 헤더: $bearerToken")
+
         return if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             bearerToken.substring(7)
         } else null
