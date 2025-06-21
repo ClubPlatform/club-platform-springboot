@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfiguration
 
 /*
 Spring Security 보안 설정 구성
@@ -41,6 +42,15 @@ class SecurityConfig(
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .cors { cors ->
+                cors.configurationSource {
+                    val config = CorsConfiguration()
+                    config.allowedOrigins = listOf("*")
+                    config.allowedMethods = listOf("*")
+                    config.allowedHeaders = listOf("*")
+                    config
+                }
+            }
 
         return http.build()
     }
