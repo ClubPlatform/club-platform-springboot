@@ -42,26 +42,145 @@ class PostController(
         }
     }
 
-    // 게시글 목록 조회
+    // 특정 게시판의 게시글 목록 조회
     @GetMapping("/board/{boardId}")
-    fun getPostList(
+    fun getBoardPosts(
         @PathVariable boardId: Long,
-        @RequestParam boardType: String,
         authentication: Authentication
     ): ResponseEntity<PostListResponse> {
         val userId = authentication.principal as Long
-        logger.info("게시글 목록 조회 요청: boardId=$boardId, boardType=$boardType, userId=$userId")
+        logger.info("게시판 게시글 목록 조회 요청: boardId=$boardId, userId=$userId")
 
         return try {
-            val response = postService.getPostList(boardId, boardType, userId)
+            val response = postService.getBoardPosts(boardId, userId)
             ResponseEntity.ok(response)
 
         } catch (e: Exception) {
-            logger.error("게시글 목록 조회 실패: ${e.message}")
+            logger.error("게시판 게시글 목록 조회 실패: ${e.message}")
 
             val errorResponse = PostListResponse(
                 success = false,
                 message = e.message ?: "게시글 목록을 조회할 수 없습니다."
+            )
+
+            ResponseEntity.badRequest().body(errorResponse)
+        }
+    }
+
+    // 인기 게시글 목록 조회 (내 모든 동아리 대상)
+    @GetMapping("/hot")
+    fun getHotPosts(
+        authentication: Authentication
+    ): ResponseEntity<PostListResponse> {
+        val userId = authentication.principal as Long
+        logger.info("인기 게시글 목록 조회 요청: userId=$userId")
+
+        return try {
+            val response = postService.getHotPosts(userId)
+            ResponseEntity.ok(response)
+
+        } catch (e: Exception) {
+            logger.error("인기 게시글 목록 조회 실패: ${e.message}")
+
+            val errorResponse = PostListResponse(
+                success = false,
+                message = e.message ?: "인기 게시글 목록을 조회할 수 없습니다."
+            )
+
+            ResponseEntity.badRequest().body(errorResponse)
+        }
+    }
+
+    // 베스트 게시글 목록 조회 (내 모든 동아리 대상)
+    @GetMapping("/best")
+    fun getBestPosts(
+        authentication: Authentication
+    ): ResponseEntity<PostListResponse> {
+        val userId = authentication.principal as Long
+        logger.info("베스트 게시글 목록 조회 요청: userId=$userId")
+
+        return try {
+            val response = postService.getBestPosts(userId)
+            ResponseEntity.ok(response)
+
+        } catch (e: Exception) {
+            logger.error("베스트 게시글 목록 조회 실패: ${e.message}")
+
+            val errorResponse = PostListResponse(
+                success = false,
+                message = e.message ?: "베스트 게시글 목록을 조회할 수 없습니다."
+            )
+
+            ResponseEntity.badRequest().body(errorResponse)
+        }
+    }
+
+    // 내가 작성한 게시글 목록 조회
+    @GetMapping("/my-posts")
+    fun getMyPosts(
+        authentication: Authentication
+    ): ResponseEntity<PostListResponse> {
+        val userId = authentication.principal as Long
+        logger.info("내 게시글 목록 조회 요청: userId=$userId")
+
+        return try {
+            val response = postService.getMyPosts(userId)
+            ResponseEntity.ok(response)
+
+        } catch (e: Exception) {
+            logger.error("내 게시글 목록 조회 실패: ${e.message}")
+
+            val errorResponse = PostListResponse(
+                success = false,
+                message = e.message ?: "내 게시글 목록을 조회할 수 없습니다."
+            )
+
+            ResponseEntity.badRequest().body(errorResponse)
+        }
+    }
+
+    // 내가 댓글 단 게시글 목록 조회
+    @GetMapping("/my-comments")
+    fun getMyCommentPosts(
+        authentication: Authentication
+    ): ResponseEntity<PostListResponse> {
+        val userId = authentication.principal as Long
+        logger.info("내가 댓글 단 게시글 목록 조회 요청: userId=$userId")
+
+        return try {
+            val response = postService.getMyCommentPosts(userId)
+            ResponseEntity.ok(response)
+
+        } catch (e: Exception) {
+            logger.error("내가 댓글 단 게시글 목록 조회 실패: ${e.message}")
+
+            val errorResponse = PostListResponse(
+                success = false,
+                message = e.message ?: "댓글 단 게시글 목록을 조회할 수 없습니다."
+            )
+
+            ResponseEntity.badRequest().body(errorResponse)
+        }
+    }
+
+    // 내가 스크랩한 게시글 목록 조회
+    @GetMapping("/my-scraps")
+    fun getMyScrappedPosts(
+        authentication: Authentication
+    ): ResponseEntity<PostListResponse> {
+        val userId = authentication.principal as Long
+        logger.info("내가 스크랩한 게시글 목록 조회 요청: userId=$userId")
+
+        return try {
+            val response = postService.getMyScrappedPosts(userId)
+            ResponseEntity.ok(response)
+
+        } catch (e: Exception) {
+            logger.error("내가 스크랩한 게시글 목록 조회 실패: ${e.message}")
+
+            val errorResponse = PostListResponse(
+                success = false,
+                message = e.message ?: "스크랩한 게시글 목록을 조회할 수 없습니다."
             )
 
             ResponseEntity.badRequest().body(errorResponse)

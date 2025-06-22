@@ -5,15 +5,16 @@ import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.*
 import org.slf4j.LoggerFactory
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 /*
-게시글 작성 및 관리 서비스
+게시글 작성 및 관리 서비스 (리팩토링됨)
 - 게시글 작성/수정/삭제 및 공지사항 설정
-- 게시판별 게시글 목록 조회 (일반/HOT/BEST)
-- 개인화된 게시글 목록 (내 글/댓글 단 글/스크랩)
+- 특정 게시판별 게시글 목록 조회
+- 전역 필터링 게시글 목록 (HOT/BEST/내 글/댓글 단 글/스크랩)
 - 게시글 좋아요 및 스크랩 토글 관리
 - 조회수 증가 업데이트
 - 권한 기반 게시글 수정/삭제
@@ -27,6 +28,7 @@ class PostService(
     private val scrapRepository: ScrapRepository,
     private val userRepository: UserRepository,
     private val clubMemberRepository: ClubMemberRepository,
+    private val boardRepository: BoardRepository,
     private val boardService: BoardService,
     private val notificationEventService: NotificationEventService
 ) {
@@ -71,10 +73,110 @@ class PostService(
         )
     }
 
-    // 게시글 목록 조회
+    // === 새로운 분리된 API들 ===
+
+    // 특정 게시판의 게시글 목록 조회
+    @Transactional(readOnly = true)
+    fun getBoardPosts(boardId: Long, userId: Long): PostListResponse {
+        logger.info("게시판 게시글 목록 조회: boardId=$boardId, userId=$userId")
+
+        // 게시판 접근 권한 확인
+        boardService.validateBoardAccess(boardId, userId)
+
+        val posts = postRepository.findByBoardIdOrderByNoticeAndCreatedAt(boardId)
+
+        return buildPostListResponse(posts, "게시판 게시글 목록 조회 성공")
+    }
+
+    // 인기 게시글 목록 조회 (내 모든 동아리 대상)
+    @Transactional(readOnly = true)
+    fun getHotPosts(userId: Long): PostListResponse {
+        logger.info("인기 게시글 목록 조회: userId=$userId")
+
+        val weekAgo = LocalDateTime.now().minusWeeks(1)
+        val posts = postRepository.findMyClubsHotPosts(userId, weekAgo)
+
+        return buildPostListResponse(posts, "인기 게시글 목록 조회 성공")
+    }
+
+    // 베스트 게시글 목록 조회 (내 모든 동아리 대상)
+    @Transactional(readOnly = true)
+    fun getBestPosts(userId: Long): PostListResponse {
+        logger.info("베스트 게시글 목록 조회: userId=$userId")
+
+        val monthAgo = LocalDateTime.now().minusMonths(1)
+        val posts = postRepository.findMyClubsBestPosts(userId, monthAgo)
+
+        return buildPostListResponse(posts, "베스트 게시글 목록 조회 성공")
+    }
+
+    // 내가 작성한 게시글 목록 조회
+    @Transactional(readOnly = true)
+    fun getMyPosts(userId: Long): PostListResponse {
+        logger.info("내 게시글 목록 조회: userId=$userId")
+
+        val posts = postRepository.findMyPostsInMyClubs(userId)
+
+        return buildPostListResponse(posts, "내 게시글 목록 조회 성공")
+    }
+
+    // 내가 댓글 단 게시글 목록 조회
+    @Transactional(readOnly = true)
+    fun getMyCommentPosts(userId: Long): PostListResponse {
+        logger.info("내가 댓글 단 게시글 목록 조회: userId=$userId")
+
+        val posts = postRepository.findMyCommentPostsInMyClubs(userId)
+
+        return buildPostListResponse(posts, "댓글 단 게시글 목록 조회 성공")
+    }
+
+    // 내가 스크랩한 게시글 목록 조회
+    @Transactional(readOnly = true)
+    fun getMyScrappedPosts(userId: Long): PostListResponse {
+        logger.info("내가 스크랩한 게시글 목록 조회: userId=$userId")
+
+        val posts = postRepository.findMyScrappedPostsInMyClubs(userId)
+
+        return buildPostListResponse(posts, "스크랩한 게시글 목록 조회 성공")
+    }
+
+    // === 공통 헬퍼 메소드 ===
+
+    // 게시글 목록 응답 생성 (boardId, boardName 포함)
+    private fun buildPostListResponse(posts: List<Post>, message: String): PostListResponse {
+        val postListItems = posts.map { post ->
+            val author = userRepository.findByIdOrNull(post.authorId)
+            val board = boardRepository.findByIdOrNull(post.boardId)
+
+            PostListItem(
+                postId = post.postId,
+                title = post.title,
+                content = post.content,
+                authorName = if (post.isAnonymous) "익명" else (author?.name ?: "알 수 없음"),
+                createdAt = post.createdAt,
+                viewCount = post.viewCount,
+                commentCount = post.commentCount,
+                boardId = post.boardId,
+                boardName = board?.name ?: "알 수 없는 게시판"
+            )
+        }
+
+        logger.info("게시글 목록 조회 완료: 게시글수=${postListItems.size}")
+
+        return PostListResponse(
+            success = true,
+            message = message,
+            totalCount = postListItems.size.toLong(),
+            posts = postListItems
+        )
+    }
+
+    // === 레거시 메소드 (기존 호환성 유지) ===
+
+    // 게시글 목록 조회 (기존 API - 레거시)
     @Transactional(readOnly = true)
     fun getPostList(boardId: Long, boardType: String, userId: Long): PostListResponse {
-        logger.info("게시글 목록 조회: boardId=$boardId, type=$boardType, userId=$userId")
+        logger.info("게시글 목록 조회 (레거시): boardId=$boardId, type=$boardType, userId=$userId")
 
         val posts = when (boardType.lowercase()) {
             "general", "notice", "tips" -> {
@@ -111,36 +213,17 @@ class PostService(
             }
         }
 
-        val postListItems = posts.map { post ->
-            val author = userRepository.findById(post.authorId).orElse(null)
-            PostListItem(
-                postId = post.postId,
-                title = post.title,
-                content = post.content,
-                authorName = if (post.isAnonymous) "익명" else (author?.name ?: "알 수 없음"),
-                createdAt = post.createdAt,
-                viewCount = post.viewCount,
-                commentCount = post.commentCount
-            )
-        }
-
-        logger.info("게시글 목록 조회 완료: 게시글수=${postListItems.size}")
-
-        return PostListResponse(
-            success = true,
-            message = "게시글 목록 조회 성공",
-            posts = postListItems
-        )
+        return buildPostListResponse(posts, "게시글 목록 조회 성공")
     }
+
+    // === 게시글 상세 조회 및 관리 ===
 
     // 게시글 상세 조회
     @Transactional
     fun getPostDetail(postId: Long, userId: Long): PostDetailResponse {
         logger.info("게시글 상세 조회: postId=$postId, userId=$userId")
 
-        val post = postRepository.findById(postId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 게시글입니다.")
-        }
+        val post = postRepository.findByIdOrNull(postId) ?: throw IllegalArgumentException("존재하지 않는 게시글입니다.")
 
         // 게시판 접근 권한 확인
         val clubId = boardService.validateBoardAccess(post.boardId, userId)
@@ -154,11 +237,12 @@ class PostService(
 
         // 수정/삭제 권한 확인
         val membership = clubMemberRepository.findByUserIdAndClubIdAndStatus(userId, clubId, MemberStatus.active)
-        val canEdit = post.authorId == userId || 
-                     (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
+        val canEdit = post.authorId == userId ||
+                (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
         val canDelete = canEdit
 
-        val author = userRepository.findById(post.authorId).orElse(null)
+        val author = userRepository.findByIdOrNull(post.authorId)
+        val board = boardRepository.findByIdOrNull(post.boardId)
 
         val postDetail = PostDetailInfo(
             postId = post.postId,
@@ -173,7 +257,9 @@ class PostService(
             isScraped = isScraped,
             isAnonymous = post.isAnonymous,
             canEdit = canEdit,
-            canDelete = canDelete
+            canDelete = canDelete,
+            boardId = post.boardId,
+            boardName = board?.name ?: "알 수 없는 게시판"
         )
 
         logger.info("게시글 상세 조회 완료: postId=$postId")
@@ -189,18 +275,16 @@ class PostService(
     fun updatePost(postId: Long, request: UpdatePostRequest, userId: Long): UpdatePostResponse {
         logger.info("게시글 수정 요청: postId=$postId, userId=$userId")
 
-        val post = postRepository.findById(postId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 게시글입니다.")
-        }
+        val post = postRepository.findByIdOrNull(postId) ?: throw IllegalArgumentException("존재하지 않는 게시글입니다.")
 
         // 게시판 접근 권한 확인
         val clubId = boardService.validateBoardAccess(post.boardId, userId)
 
         // 수정 권한 확인
         val membership = clubMemberRepository.findByUserIdAndClubIdAndStatus(userId, clubId, MemberStatus.active)
-        val canEdit = post.authorId == userId || 
-                     (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
-        
+        val canEdit = post.authorId == userId ||
+                (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
+
         if (!canEdit) {
             throw IllegalArgumentException("게시글을 수정할 권한이 없습니다.")
         }
@@ -235,18 +319,16 @@ class PostService(
     fun deletePost(postId: Long, userId: Long) {
         logger.info("게시글 삭제 요청: postId=$postId, userId=$userId")
 
-        val post = postRepository.findById(postId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 게시글입니다.")
-        }
+        val post = postRepository.findByIdOrNull(postId) ?: throw IllegalArgumentException("존재하지 않는 게시글입니다.")
 
         // 게시판 접근 권한 확인
         val clubId = boardService.validateBoardAccess(post.boardId, userId)
 
         // 삭제 권한 확인
         val membership = clubMemberRepository.findByUserIdAndClubIdAndStatus(userId, clubId, MemberStatus.active)
-        val canDelete = post.authorId == userId || 
-                       (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
-        
+        val canDelete = post.authorId == userId ||
+                (membership?.role == MemberRole.owner || membership?.role == MemberRole.staff)
+
         if (!canDelete) {
             throw IllegalArgumentException("게시글을 삭제할 권한이 없습니다.")
         }
@@ -260,9 +342,7 @@ class PostService(
     fun togglePostLike(postId: Long, userId: Long): LikeToggleResponse {
         logger.info("게시글 좋아요 토글: postId=$postId, userId=$userId")
 
-        val post = postRepository.findById(postId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 게시글입니다.")
-        }
+        val post = postRepository.findByIdOrNull(postId) ?: throw IllegalArgumentException("존재하지 않는 게시글입니다.")
 
         // 게시판 접근 권한 확인
         boardService.validateBoardAccess(post.boardId, userId)
@@ -298,9 +378,7 @@ class PostService(
     fun togglePostScrap(postId: Long, userId: Long): ScrapToggleResponse {
         logger.info("게시글 스크랩 토글: postId=$postId, userId=$userId")
 
-        val post = postRepository.findById(postId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 게시글입니다.")
-        }
+        val post = postRepository.findByIdOrNull(postId) ?: throw IllegalArgumentException("존재하지 않는 게시글입니다.")
 
         // 게시판 접근 권한 확인
         boardService.validateBoardAccess(post.boardId, userId)

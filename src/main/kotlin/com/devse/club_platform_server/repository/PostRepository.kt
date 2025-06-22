@@ -19,10 +19,89 @@ interface PostRepository : JpaRepository<Post, Long> {
     """)
     fun findByBoardIdOrderByNoticeAndCreatedAt(@Param("boardId") boardId: Long): List<Post>
 
-    // 내가 작성한 게시글 조회
+    // === 전역 필터링 쿼리들 (내가 속한 모든 동아리 대상) ===
+
+    // 내가 속한 동아리들의 HOT 게시글 조회 (일주일 내, 총 상호작용 20개 이상)
+    @Query("""
+        SELECT p FROM Post p 
+        JOIN Board b ON p.boardId = b.boardId 
+        JOIN ClubMember cm ON b.clubId = cm.clubId 
+        WHERE cm.userId = :userId 
+        AND cm.status = 'active'
+        AND b.isActive = true
+        AND p.createdAt >= :weekAgo 
+        AND (p.likeCount + p.viewCount + p.commentCount) >= 20 
+        ORDER BY (p.likeCount + p.viewCount + p.commentCount) DESC, p.createdAt DESC
+    """)
+    fun findMyClubsHotPosts(
+        @Param("userId") userId: Long,
+        @Param("weekAgo") weekAgo: LocalDateTime
+    ): List<Post>
+
+    // 내가 속한 동아리들의 BEST 게시글 조회 (한달 내, 총 상호작용 50개 이상)
+    @Query("""
+        SELECT p FROM Post p 
+        JOIN Board b ON p.boardId = b.boardId 
+        JOIN ClubMember cm ON b.clubId = cm.clubId 
+        WHERE cm.userId = :userId 
+        AND cm.status = 'active'
+        AND b.isActive = true
+        AND p.createdAt >= :monthAgo 
+        AND (p.likeCount + p.viewCount + p.commentCount) >= 50 
+        ORDER BY (p.likeCount + p.viewCount + p.commentCount) DESC, p.createdAt DESC
+    """)
+    fun findMyClubsBestPosts(
+        @Param("userId") userId: Long,
+        @Param("monthAgo") monthAgo: LocalDateTime
+    ): List<Post>
+
+    // 내가 작성한 게시글 조회 (내가 속한 동아리의 게시글만)
+    @Query("""
+        SELECT p FROM Post p 
+        JOIN Board b ON p.boardId = b.boardId 
+        JOIN ClubMember cm ON b.clubId = cm.clubId 
+        WHERE p.authorId = :userId 
+        AND cm.userId = :userId 
+        AND cm.status = 'active'
+        AND b.isActive = true
+        ORDER BY p.createdAt DESC
+    """)
+    fun findMyPostsInMyClubs(@Param("userId") userId: Long): List<Post>
+
+    // 내가 댓글을 단 게시글 조회 (내가 속한 동아리의 게시글만)
+    @Query("""
+        SELECT DISTINCT p FROM Post p 
+        JOIN Comment c ON p.postId = c.postId 
+        JOIN Board b ON p.boardId = b.boardId 
+        JOIN ClubMember cm ON b.clubId = cm.clubId 
+        WHERE c.authorId = :userId 
+        AND cm.userId = :userId 
+        AND cm.status = 'active'
+        AND b.isActive = true
+        ORDER BY p.createdAt DESC
+    """)
+    fun findMyCommentPostsInMyClubs(@Param("userId") userId: Long): List<Post>
+
+    // 내가 스크랩한 게시글 조회 (내가 속한 동아리의 게시글만)
+    @Query("""
+        SELECT p FROM Post p 
+        JOIN Scrap s ON p.postId = s.postId 
+        JOIN Board b ON p.boardId = b.boardId 
+        JOIN ClubMember cm ON b.clubId = cm.clubId 
+        WHERE s.userId = :userId 
+        AND cm.userId = :userId 
+        AND cm.status = 'active'
+        AND b.isActive = true
+        ORDER BY s.scrappedAt DESC
+    """)
+    fun findMyScrappedPostsInMyClubs(@Param("userId") userId: Long): List<Post>
+
+    // === 기존 단일 게시판 쿼리들 (레거시 - 필요시 제거 가능) ===
+
+    // 내가 작성한 게시글 조회 (전체)
     fun findByAuthorIdOrderByCreatedAtDesc(authorId: Long): List<Post>
 
-    // 내가 댓글을 단 게시글 조회
+    // 내가 댓글을 단 게시글 조회 (전체)
     @Query("""
         SELECT DISTINCT p FROM Post p 
         JOIN Comment c ON p.postId = c.postId 
@@ -31,7 +110,7 @@ interface PostRepository : JpaRepository<Post, Long> {
     """)
     fun findPostsWithMyComments(@Param("userId") userId: Long): List<Post>
 
-    // 내가 스크랩한 게시글 조회
+    // 내가 스크랩한 게시글 조회 (전체)
     @Query("""
         SELECT p FROM Post p 
         JOIN Scrap s ON p.postId = s.postId 
@@ -40,7 +119,7 @@ interface PostRepository : JpaRepository<Post, Long> {
     """)
     fun findMyScrapedPosts(@Param("userId") userId: Long): List<Post>
 
-    // HOT 게시글 조회 (일주일 내, 총 상호작용 20개 이상)
+    // HOT 게시글 조회 (단일 게시판)
     @Query("""
         SELECT p FROM Post p 
         WHERE p.boardId = :boardId 
@@ -53,7 +132,7 @@ interface PostRepository : JpaRepository<Post, Long> {
         @Param("weekAgo") weekAgo: LocalDateTime
     ): List<Post>
 
-    // BEST 게시글 조회 (한달 내, 총 상호작용 50개 이상)
+    // BEST 게시글 조회 (단일 게시판)
     @Query("""
         SELECT p FROM Post p 
         WHERE p.boardId = :boardId 
@@ -65,6 +144,8 @@ interface PostRepository : JpaRepository<Post, Long> {
         @Param("boardId") boardId: Long,
         @Param("monthAgo") monthAgo: LocalDateTime
     ): List<Post>
+
+    // === 통계 및 업데이트 쿼리들 ===
 
     // 조회수 증가
     @Modifying
