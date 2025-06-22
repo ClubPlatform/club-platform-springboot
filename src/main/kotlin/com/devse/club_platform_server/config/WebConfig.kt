@@ -10,28 +10,28 @@ import java.util.concurrent.TimeUnit
 @Configuration
 class WebConfig : WebMvcConfigurer {
 
-    @Value("\${file.upload-dir:./uploads}")
-    private lateinit var uploadDir: String
+    // ChatService와 동일하게 절대경로 사용
+    private val uploadDir = "/uploads"
 
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
         // 프로필 이미지 정적 리소스 핸들러
         registry.addResourceHandler("/uploads/profiles/**")
-            .addResourceLocations("file:${normalizeUploadPath()}/profiles/")
+            .addResourceLocations("file:${uploadDir}/profiles/")
             .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS))
 
         // 동아리 로고 이미지 정적 리소스 핸들러
         registry.addResourceHandler("/uploads/clubs/**")
-            .addResourceLocations("file:${normalizeUploadPath()}/clubs/")
+            .addResourceLocations("file:${uploadDir}/clubs/")
             .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS))
 
         // 채팅 이미지 정적 리소스 핸들러
         registry.addResourceHandler("/uploads/chats/**")
-            .addResourceLocations("file:${normalizeUploadPath()}/chats/")
+            .addResourceLocations("file:${uploadDir}/chats/")
             .setCacheControl(CacheControl.maxAge(1, TimeUnit.DAYS))
 
         // 일반 업로드 파일 핸들러
         registry.addResourceHandler("/uploads/**")
-            .addResourceLocations("file:${normalizeUploadPath()}/")
+            .addResourceLocations("file:${uploadDir}/")
             .setCacheControl(CacheControl.maxAge(1, TimeUnit.DAYS))
     }
 
@@ -63,12 +63,6 @@ class WebConfig : WebMvcConfigurer {
             .favorParameter(false)
             .ignoreAcceptHeader(false)
             .defaultContentType(org.springframework.http.MediaType.APPLICATION_JSON)
-    }
-
-    // 업로드 경로 정규화
-    private fun normalizeUploadPath(): String {
-        val path = Paths.get(uploadDir).toAbsolutePath().normalize()
-        return path.toString().replace("\\", "/") + "/"
     }
 }
 
