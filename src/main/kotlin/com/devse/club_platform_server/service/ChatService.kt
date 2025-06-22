@@ -26,7 +26,7 @@ class ChatService(
 
     // 채팅방 생성
     fun createChatRoom(request: CreateChatRoomRequest, creatorId: Long): CreateChatRoomResponse {
-        logger.info("채팅방 생성 요청: type=${request.type}, creatorId=$creatorId")
+        logger.info("채팅방 생성 요청: type=${request.type}, creatorId=$creatorId, memberIds=${request.memberIds}")
 
         val chatRoomType = try {
             ChatRoomType.valueOf(request.type)
@@ -38,6 +38,12 @@ class ChatService(
         if (chatRoomType == ChatRoomType.personal && request.memberIds.size == 1) {
             val existingRoom = chatRoomRepository.findPersonalChatRoom(creatorId, request.memberIds[0])
             if (existingRoom != null) {
+                logger.info("기존 개인 채팅방 발견: chatRoomId=${existingRoom.chatRoomId}")
+
+                // 기존 채팅방의 멤버 확인
+                val members = chatRoomMemberRepository.findByChatRoomId(existingRoom.chatRoomId)
+                logger.info("기존 채팅방 멤버: ${members.map { "userId=${it.userId}" }.joinToString(", ")}")
+
                 return CreateChatRoomResponse(
                     success = true,
                     message = "기존 채팅방을 사용합니다.",
@@ -52,13 +58,15 @@ class ChatService(
             type = chatRoomType
         )
         val savedChatRoom = chatRoomRepository.save(chatRoom)
+        logger.info("채팅방 생성됨: chatRoomId=${savedChatRoom.chatRoomId}")
 
         // 생성자를 멤버로 추가
         val creatorMember = ChatRoomMember(
             chatRoomId = savedChatRoom.chatRoomId,
             userId = creatorId
         )
-        chatRoomMemberRepository.save(creatorMember)
+        val savedCreatorMember = chatRoomMemberRepository.save(creatorMember)
+        logger.info("생성자 멤버 추가됨: memberId=${savedCreatorMember.memberId}, userId=$creatorId")
 
         // 초대된 멤버들 추가
         request.memberIds.forEach { memberId ->
@@ -67,11 +75,14 @@ class ChatService(
                     chatRoomId = savedChatRoom.chatRoomId,
                     userId = memberId
                 )
-                chatRoomMemberRepository.save(member)
+                val savedMember = chatRoomMemberRepository.save(member)
+                logger.info("초대 멤버 추가됨: memberId=${savedMember.memberId}, userId=$memberId")
             }
         }
 
-        logger.info("채팅방 생성 완료: chatRoomId=${savedChatRoom.chatRoomId}")
+        // 최종 멤버 확인
+        val finalMembers = chatRoomMemberRepository.findByChatRoomId(savedChatRoom.chatRoomId)
+        logger.info("최종 채팅방 멤버 수: ${finalMembers.size}, 멤버: ${finalMembers.map { "userId=${it.userId}" }.joinToString(", ")}")
 
         return CreateChatRoomResponse(
             success = true,
@@ -80,16 +91,133 @@ class ChatService(
         )
     }
 
-    // 채팅방 목록 조회
+    // 메시지 목록 조회
+    @Transactional(readOnly = true)
+    fun getMessageList(chatRoomId: Long, userId: Long, page: Int, size: Int): MessageListResponse {
+        logger.info("메시지 목록 조회 시작: chatRoomId=$chatRoomId, userId=$userId, page=$page")
+
+        // 채팅방 존재 확인
+        val chatRoomExists = chatRoomRepository.existsById(chatRoomId)
+        logger.info("채팅방 존재 여부: chatRoomId=$chatRoomId, exists=$chatRoomExists")
+
+        if (!chatRoomExists) {
+            throw IllegalArgumentException("존재하지 않는 채팅방입니다.")
+        }
+
+        // 채팅방의 모든 멤버 조회
+        val allMembers = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
+        logger.info("채팅방 전체 멤버 수: ${allMembers.size}")
+        allMembers.forEach { member ->
+            logger.info("멤버 정보: memberId=${member.memberId}, userId=${member.userId}, joinedAt=${member.joinedAt}")
+        }
+
+        // 현재 사용자의 멤버십 확인
+        val userMembership = chatRoomMemberRepository.findByChatRoomIdAndUserId(chatRoomId, userId)
+        if (userMembership != null) {
+            logger.info("사용자 멤버십 발견: memberId=${userMembership.memberId}, joinedAt=${userMembership.joinedAt}")
+        } else {
+            logger.warn("사용자 멤버십 없음: chatRoomId=$chatRoomId, userId=$userId")
+        }
+
+        // 멤버 확인
+        val isMember = chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)
+        logger.info("멤버 확인 결과: chatRoomId=$chatRoomId, userId=$userId, isMember=$isMember")
+
+        if (!isMember) {
+            throw IllegalArgumentException("채팅방 멤버가 아닙니다.")
+        }
+
+        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        val messagePage = messageRepository.findByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoomId, pageable)
+
+        val messageInfos = messagePage.content.map { message ->
+            convertToMessageInfo(message, userId)
+        }.reversed() // 시간순으로 정렬
+
+        logger.info("메시지 조회 완료: 메시지 수=${messageInfos.size}")
+
+        return MessageListResponse(
+            success = true,
+            message = "메시지 목록 조회 성공",
+            messages = messageInfos,
+            hasNext = messagePage.hasNext(),
+            totalElements = messagePage.totalElements
+        )
+    }
+
+    // 채팅방 상세 조회
+    @Transactional(readOnly = true)
+    fun getChatRoomDetail(chatRoomId: Long, userId: Long): ChatRoomInfo {
+        logger.info("채팅방 상세 조회: chatRoomId=$chatRoomId, userId=$userId")
+
+        val chatRoom = chatRoomRepository.findById(chatRoomId).orElseThrow {
+            IllegalArgumentException("존재하지 않는 채팅방입니다.")
+        }
+
+        // 멤버 확인 전에 모든 멤버 로그
+        val allMembers = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
+        logger.info("채팅방 멤버 목록: ${allMembers.map { "userId=${it.userId}" }.joinToString(", ")}")
+
+        // 멤버 확인
+        if (!chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)) {
+            logger.error("채팅방 멤버가 아님: chatRoomId=$chatRoomId, userId=$userId")
+            throw IllegalArgumentException("채팅방 멤버가 아닙니다.")
+        }
+
+        val members = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
+        val memberInfos = members.mapNotNull { member ->
+            userRepository.findById(member.userId).orElse(null)?.let { user ->
+                ChatMemberInfo(
+                    userId = user.userId,
+                    userName = user.name,
+                    profileImage = user.profileImage,
+                    joinedAt = member.joinedAt,
+                    lastReadAt = member.lastReadAt
+                )
+            }
+        }
+
+        val memberCount = members.size.toLong()
+        val lastMessage = messageRepository.findTopByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoomId)
+        val unreadCount = messageRepository.countUnreadMessages(chatRoomId, userId)
+
+        // 채팅방 이름 설정
+        val displayName = if (chatRoom.type == ChatRoomType.personal && chatRoom.name == null) {
+            getPersonalChatRoomName(chatRoomId, userId)
+        } else {
+            chatRoom.name ?: "채팅방"
+        }
+
+        return ChatRoomInfo(
+            chatRoomId = chatRoom.chatRoomId,
+            name = displayName,
+            type = chatRoom.type,
+            memberCount = memberCount,
+            lastMessage = lastMessage?.let { convertToMessageInfo(it, userId) },
+            unreadCount = unreadCount,
+            createdAt = chatRoom.createdAt,
+            members = memberInfos,
+            currentUserId = userId
+        )
+    }
+
+    // 채팅방 목록 조회 - 디버깅 로그 추가
     @Transactional(readOnly = true)
     fun getChatRoomList(userId: Long): ChatRoomListResponse {
-        logger.info("채팅방 목록 조회: userId=$userId")
+        logger.info("채팅방 목록 조회 시작: userId=$userId")
+
+        // 사용자가 속한 모든 채팅방 ID 조회
+        val chatRoomIds = chatRoomMemberRepository.findChatRoomIdsByUserId(userId)
+        logger.info("사용자가 속한 채팅방 ID 목록: $chatRoomIds")
 
         val chatRooms = chatRoomRepository.findByUserId(userId)
+        logger.info("조회된 채팅방 수: ${chatRooms.size}")
 
         val chatRoomInfos = chatRooms.map { chatRoom ->
             val members = chatRoomMemberRepository.findByChatRoomId(chatRoom.chatRoomId)
             val memberCount = members.size.toLong()
+
+            logger.info("채팅방 ${chatRoom.chatRoomId}의 멤버 수: $memberCount")
 
             // 멤버 정보 생성 (개인 채팅의 경우 상대방 정보만 포함)
             val memberInfos = if (chatRoom.type == ChatRoomType.personal) {
@@ -142,6 +270,8 @@ class ChatService(
             )
         }
 
+        logger.info("채팅방 목록 조회 완료: 채팅방 수=${chatRoomInfos.size}")
+
         return ChatRoomListResponse(
             success = true,
             message = "채팅방 목록 조회 성공",
@@ -149,53 +279,36 @@ class ChatService(
         )
     }
 
-    // 채팅방 상세 조회
-    @Transactional(readOnly = true)
-    fun getChatRoomDetail(chatRoomId: Long, userId: Long): ChatRoomInfo {
-        val chatRoom = chatRoomRepository.findById(chatRoomId).orElseThrow {
-            IllegalArgumentException("존재하지 않는 채팅방입니다.")
-        }
+    // Helper 메서드들은 동일...
+    private fun convertToMessageInfo(message: Message, currentUserId: Long): MessageInfo {
+        val sender = userRepository.findById(message.senderId).orElse(null)
+        val isRead = messageReadStatusRepository.existsByMessageIdAndUserId(message.messageId, currentUserId)
+        val readCount = messageReadStatusRepository.countByMessageId(message.messageId)
 
-        // 멤버 확인
-        if (!chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)) {
-            throw IllegalArgumentException("채팅방 멤버가 아닙니다.")
-        }
-
-        val members = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
-        val memberInfos = members.mapNotNull { member ->
-            userRepository.findById(member.userId).orElse(null)?.let { user ->
-                ChatMemberInfo(
-                    userId = user.userId,
-                    userName = user.name,
-                    profileImage = user.profileImage,
-                    joinedAt = member.joinedAt,
-                    lastReadAt = member.lastReadAt
-                )
-            }
-        }
-
-        val memberCount = members.size.toLong()
-        val lastMessage = messageRepository.findTopByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoomId)
-        val unreadCount = messageRepository.countUnreadMessages(chatRoomId, userId)
-
-        // 채팅방 이름 설정
-        val displayName = if (chatRoom.type == ChatRoomType.personal && chatRoom.name == null) {
-            getPersonalChatRoomName(chatRoomId, userId)
-        } else {
-            chatRoom.name ?: "채팅방"
-        }
-
-        return ChatRoomInfo(
-            chatRoomId = chatRoom.chatRoomId,
-            name = displayName,
-            type = chatRoom.type,
-            memberCount = memberCount,
-            lastMessage = lastMessage?.let { convertToMessageInfo(it, userId) },
-            unreadCount = unreadCount,
-            createdAt = chatRoom.createdAt,
-            members = memberInfos,
-            currentUserId = userId
+        return MessageInfo(
+            messageId = message.messageId,
+            chatRoomId = message.chatRoomId,
+            senderId = message.senderId,
+            senderName = sender?.name ?: "알 수 없음",
+            senderProfileImage = sender?.profileImage,
+            content = message.content,
+            messageType = message.messageType,
+            fileUrl = message.fileUrl,
+            isDeleted = message.isDeleted,
+            createdAt = message.createdAt,
+            updatedAt = message.updatedAt,
+            readCount = readCount,
+            isRead = isRead || message.senderId == currentUserId
         )
+    }
+
+    private fun getPersonalChatRoomName(chatRoomId: Long, userId: Long): String {
+        val members = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
+        val otherMember = members.find { it.userId != userId }
+
+        return otherMember?.let { member ->
+            userRepository.findById(member.userId).orElse(null)?.name
+        } ?: "Unknown"
     }
 
     // 메시지 전송
@@ -246,32 +359,6 @@ class ChatService(
             message = "메시지가 전송되었습니다.",
             messageId = savedMessage.messageId,
             createdAt = savedMessage.createdAt
-        )
-    }
-
-    // 메시지 목록 조회
-    @Transactional(readOnly = true)
-    fun getMessageList(chatRoomId: Long, userId: Long, page: Int, size: Int): MessageListResponse {
-        logger.info("메시지 목록 조회: chatRoomId=$chatRoomId, userId=$userId, page=$page")
-
-        // 멤버 확인
-        if (!chatRoomMemberRepository.existsByChatRoomIdAndUserId(chatRoomId, userId)) {
-            throw IllegalArgumentException("채팅방 멤버가 아닙니다.")
-        }
-
-        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
-        val messagePage = messageRepository.findByChatRoomIdAndIsDeletedFalseOrderByCreatedAtDesc(chatRoomId, pageable)
-
-        val messageInfos = messagePage.content.map { message ->
-            convertToMessageInfo(message, userId)
-        }.reversed() // 시간순으로 정렬
-
-        return MessageListResponse(
-            success = true,
-            message = "메시지 목록 조회 성공",
-            messages = messageInfos,
-            hasNext = messagePage.hasNext(),
-            totalElements = messagePage.totalElements
         )
     }
 
@@ -346,37 +433,5 @@ class ChatService(
         messageRepository.save(systemMessage)
 
         logger.info("채팅방 나가기 완료")
-    }
-
-    // Helper 메서드들
-    private fun convertToMessageInfo(message: Message, currentUserId: Long): MessageInfo {
-        val sender = userRepository.findById(message.senderId).orElse(null)
-        val isRead = messageReadStatusRepository.existsByMessageIdAndUserId(message.messageId, currentUserId)
-        val readCount = messageReadStatusRepository.countByMessageId(message.messageId)
-
-        return MessageInfo(
-            messageId = message.messageId,
-            chatRoomId = message.chatRoomId,
-            senderId = message.senderId,
-            senderName = sender?.name ?: "알 수 없음",
-            senderProfileImage = sender?.profileImage,
-            content = message.content,
-            messageType = message.messageType,
-            fileUrl = message.fileUrl,
-            isDeleted = message.isDeleted,
-            createdAt = message.createdAt,
-            updatedAt = message.updatedAt,
-            readCount = readCount,
-            isRead = isRead || message.senderId == currentUserId
-        )
-    }
-
-    private fun getPersonalChatRoomName(chatRoomId: Long, userId: Long): String {
-        val members = chatRoomMemberRepository.findByChatRoomId(chatRoomId)
-        val otherMember = members.find { it.userId != userId }
-
-        return otherMember?.let { member ->
-            userRepository.findById(member.userId).orElse(null)?.name
-        } ?: "Unknown"
     }
 }
