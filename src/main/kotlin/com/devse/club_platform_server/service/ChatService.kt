@@ -5,7 +5,6 @@ import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.*
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -31,10 +30,11 @@ class ChatService(
 ) {
     private val logger = LoggerFactory.getLogger(ChatService::class.java)
 
-    @Value("\${file.upload-dir:./uploads}")
-    private lateinit var uploadDir: String
+    // 절대경로로 설정
+    private val uploadDir = "/uploads"
 
-    private val chatUploadPath = "chats/"
+    // 채팅 업로드 경로 (uploadDir 하위)
+    private val chatUploadPath = "chats"
 
     // 채팅방 생성
     fun createChatRoom(request: CreateChatRoomRequest, creatorId: Long): CreateChatRoomResponse {
@@ -462,7 +462,7 @@ class ChatService(
             // 고유한 파일명 생성
             val fileName = "${UUID.randomUUID()}.$extension"
 
-            // 업로드 디렉토리 생성
+            // 절대경로 디렉토리 생성
             val fullUploadPath = Paths.get(uploadDir, chatUploadPath)
             if (!Files.exists(fullUploadPath)) {
                 Files.createDirectories(fullUploadPath)
@@ -487,13 +487,50 @@ class ChatService(
         }
     }
 
-    // 채팅 이미지 업로드 (Base64)
+    // 채팅 이미지 업로드 (Base64) - 수정된 버전
     fun uploadChatImageBase64(base64Image: String, userId: Long): UploadImageResponse {
         logger.info("채팅 Base64 이미지 업로드: userId=$userId")
 
         return try {
+            // Data URI에서 Base64 부분만 추출
+            val base64Data = when {
+                base64Image.startsWith("data:") -> {
+                    // Data URI 형식인 경우 (data:image/jpeg;base64,...)
+                    val parts = base64Image.split(",")
+                    if (parts.size != 2) {
+                        throw IllegalArgumentException("잘못된 이미지 데이터 형식입니다.")
+                    }
+
+                    // MIME 타입 확인 (선택사항)
+                    val header = parts[0]
+                    if (!header.contains("image/")) {
+                        throw IllegalArgumentException("이미지 파일만 업로드 가능합니다.")
+                    }
+
+                    // 확장자 추출
+                    val extension = when {
+                        header.contains("jpeg") || header.contains("jpg") -> "jpg"
+                        header.contains("png") -> "png"
+                        header.contains("gif") -> "gif"
+                        header.contains("webp") -> "webp"
+                        else -> "jpg" // 기본값
+                    }
+
+                    parts[1] to extension
+                }
+                else -> {
+                    // 이미 순수 Base64인 경우
+                    base64Image to "jpg"
+                }
+            }
+
             // Base64 디코딩
-            val imageBytes = Base64.getDecoder().decode(base64Image)
+            val imageBytes = try {
+                Base64.getDecoder().decode(base64Data.first)
+            } catch (e: IllegalArgumentException) {
+                logger.error("Base64 디코딩 실패", e)
+                throw IllegalArgumentException("잘못된 Base64 형식입니다.")
+            }
 
             // 파일 크기 검사 (5MB 제한)
             if (imageBytes.size > 5 * 1024 * 1024) {
@@ -501,9 +538,9 @@ class ChatService(
             }
 
             // 파일명 생성
-            val fileName = "${UUID.randomUUID()}.jpg"
+            val fileName = "${UUID.randomUUID()}.${base64Data.second}"
 
-            // 업로드 디렉토리 생성
+            // 절대경로 디렉토리 생성
             val fullUploadPath = Paths.get(uploadDir, chatUploadPath)
             if (!Files.exists(fullUploadPath)) {
                 Files.createDirectories(fullUploadPath)
@@ -523,6 +560,7 @@ class ChatService(
             )
 
         } catch (e: IllegalArgumentException) {
+            logger.warn("채팅 Base64 이미지 업로드 실패 - 잘못된 입력: ${e.message}")
             throw e
         } catch (e: Exception) {
             logger.error("채팅 Base64 이미지 저장 실패", e)
