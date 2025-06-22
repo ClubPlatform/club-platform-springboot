@@ -9,6 +9,9 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Bean
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
+import org.springframework.scheduling.TaskScheduler
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -16,10 +19,22 @@ class WebSocketConfig : WebSocketMessageBrokerConfigurer {
 
     private val logger = LoggerFactory.getLogger(WebSocketConfig::class.java)
 
+    @Bean
+    fun taskScheduler(): TaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler().apply {
+            poolSize = 10
+            setThreadNamePrefix("websocket-heartbeat-")
+            initialize()
+        }
+        return scheduler
+    }
+
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
         // 클라이언트가 구독할 수 있는 destination prefix
         config.enableSimpleBroker("/topic", "/queue")
             .setHeartbeatValue(longArrayOf(10000, 10000)) // 하트비트 설정 (10초)
+            .setTaskScheduler(taskScheduler()) // TaskScheduler 설정
+
 
         // 클라이언트가 메시지를 보낼 때 사용할 destination prefix
         config.setApplicationDestinationPrefixes("/app")
