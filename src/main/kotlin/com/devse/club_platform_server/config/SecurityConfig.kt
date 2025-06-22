@@ -52,6 +52,9 @@ class SecurityConfig(
                     // WebSocket 엔드포인트
                     .requestMatchers("/ws-chat/**").permitAll()
 
+                    // 채팅 이미지 조회는 인증 없이 허용
+                    .requestMatchers(HttpMethod.GET, "/uploads/chats/**").permitAll()
+
                     // OPTIONS 요청은 모두 허용 (CORS preflight)
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 

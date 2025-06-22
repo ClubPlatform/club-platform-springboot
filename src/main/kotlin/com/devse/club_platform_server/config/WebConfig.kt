@@ -24,6 +24,11 @@ class WebConfig : WebMvcConfigurer {
             .addResourceLocations("file:${normalizeUploadPath()}/clubs/")
             .setCacheControl(CacheControl.maxAge(7, TimeUnit.DAYS))
 
+        // 채팅 이미지 정적 리소스 핸들러
+        registry.addResourceHandler("/uploads/chats/**")
+            .addResourceLocations("file:${normalizeUploadPath()}/chats/")
+            .setCacheControl(CacheControl.maxAge(1, TimeUnit.DAYS))
+
         // 일반 업로드 파일 핸들러
         registry.addResourceHandler("/uploads/**")
             .addResourceLocations("file:${normalizeUploadPath()}/")
