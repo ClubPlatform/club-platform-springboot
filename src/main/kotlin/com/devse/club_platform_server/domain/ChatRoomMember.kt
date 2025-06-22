@@ -5,7 +5,12 @@ import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "chat_room_member")
+@Table(
+    name = "chat_room_member",
+    uniqueConstraints = [
+        UniqueConstraint(columnNames = ["chat_room_id", "user_id"])
+    ]
+)
 class ChatRoomMember(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
