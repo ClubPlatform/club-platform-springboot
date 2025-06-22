@@ -85,3 +85,11 @@ data class WebSocketMessage(
     val messageId: Long? = null,
     val timestamp: LocalDateTime = LocalDateTime.now()
 )
+
+// 이미지 업로드 응답
+data class UploadImageResponse(
+    val success: Boolean,
+    val message: String,
+    val imageUrl: String? = null,
+    val fileName: String? = null
+)

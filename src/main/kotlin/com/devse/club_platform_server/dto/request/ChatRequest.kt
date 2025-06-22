@@ -47,3 +47,9 @@ data class LeaveChatRoomRequest(
 data class MarkMessagesAsReadRequest(
     val messageIds: List<Long> = emptyList()
 )
+
+// Base64 이미지 업로드 요청
+data class ImageMessageRequest(
+    @field:NotBlank(message = "이미지 데이터는 필수입니다")
+    val base64Image: String
+)

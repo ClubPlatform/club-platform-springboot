@@ -10,6 +10,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/chats")
@@ -185,6 +186,68 @@ class ChatController(
             logger.error("채팅방 나가기 실패: ${e.message}")
             ResponseEntity.badRequest().body(
                 ApiResponse.error(e.message ?: "채팅방 나가기에 실패했습니다.")
+            )
+        }
+    }
+
+    // 채팅 이미지 업로드 (Multipart)
+    @PostMapping("/upload/image", consumes = ["multipart/form-data"])
+    fun uploadChatImage(
+        @RequestParam("file") file: MultipartFile,
+        authentication: Authentication
+    ): ResponseEntity<UploadImageResponse> {
+        val userId = authentication.principal as Long
+        logger.info("채팅 이미지 업로드 요청: userId=$userId, fileName=${file.originalFilename}")
+
+        return try {
+            val response = chatService.uploadChatImage(file, userId)
+            ResponseEntity.ok(response)
+        } catch (e: IllegalArgumentException) {
+            logger.warn("채팅 이미지 업로드 실패 - 잘못된 입력: ${e.message}")
+            ResponseEntity.badRequest().body(
+                UploadImageResponse(
+                    success = false,
+                    message = e.message ?: "이미지 업로드에 실패했습니다."
+                )
+            )
+        } catch (e: Exception) {
+            logger.error("채팅 이미지 업로드 실패", e)
+            ResponseEntity.internalServerError().body(
+                UploadImageResponse(
+                    success = false,
+                    message = "서버 오류가 발생했습니다."
+                )
+            )
+        }
+    }
+
+    // 채팅 이미지 업로드 (Base64)
+    @PostMapping("/upload/image-base64")
+    fun uploadChatImageBase64(
+        @RequestBody request: ImageMessageRequest,
+        authentication: Authentication
+    ): ResponseEntity<UploadImageResponse> {
+        val userId = authentication.principal as Long
+        logger.info("채팅 Base64 이미지 업로드 요청: userId=$userId")
+
+        return try {
+            val response = chatService.uploadChatImageBase64(request.base64Image, userId)
+            ResponseEntity.ok(response)
+        } catch (e: IllegalArgumentException) {
+            logger.warn("채팅 Base64 이미지 업로드 실패 - 잘못된 입력: ${e.message}")
+            ResponseEntity.badRequest().body(
+                UploadImageResponse(
+                    success = false,
+                    message = e.message ?: "이미지 업로드에 실패했습니다."
+                )
+            )
+        } catch (e: Exception) {
+            logger.error("채팅 Base64 이미지 업로드 실패", e)
+            ResponseEntity.internalServerError().body(
+                UploadImageResponse(
+                    success = false,
+                    message = "서버 오류가 발생했습니다."
+                )
             )
         }
     }

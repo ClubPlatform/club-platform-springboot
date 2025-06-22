@@ -5,12 +5,19 @@ import com.devse.club_platform_server.dto.request.*
 import com.devse.club_platform_server.dto.response.*
 import com.devse.club_platform_server.repository.*
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
+import java.util.*
 
 @Service
 @Transactional
@@ -23,6 +30,11 @@ class ChatService(
     private val messagingTemplate: SimpMessagingTemplate
 ) {
     private val logger = LoggerFactory.getLogger(ChatService::class.java)
+
+    @Value("\${file.upload-dir:./uploads}")
+    private lateinit var uploadDir: String
+
+    private val chatUploadPath = "chats/"
 
     // 채팅방 생성
     fun createChatRoom(request: CreateChatRoomRequest, creatorId: Long): CreateChatRoomResponse {
@@ -433,5 +445,115 @@ class ChatService(
         messageRepository.save(systemMessage)
 
         logger.info("채팅방 나가기 완료")
+    }
+
+    // 채팅 이미지 업로드 (Multipart)
+    fun uploadChatImage(file: MultipartFile, userId: Long): UploadImageResponse {
+        logger.info("채팅 이미지 업로드: userId=$userId, fileName=${file.originalFilename}")
+
+        // 파일 유효성 검사
+        validateImageFile(file)
+
+        return try {
+            // 파일 확장자 추출
+            val originalFilename = file.originalFilename ?: "unknown"
+            val extension = originalFilename.substringAfterLast('.', "jpg")
+
+            // 고유한 파일명 생성
+            val fileName = "${UUID.randomUUID()}.$extension"
+
+            // 업로드 디렉토리 생성
+            val fullUploadPath = Paths.get(uploadDir, chatUploadPath)
+            if (!Files.exists(fullUploadPath)) {
+                Files.createDirectories(fullUploadPath)
+            }
+
+            // 파일 저장
+            val filePath = fullUploadPath.resolve(fileName)
+            Files.copy(file.inputStream, filePath, StandardCopyOption.REPLACE_EXISTING)
+
+            logger.info("채팅 이미지 저장 완료: $fileName")
+
+            UploadImageResponse(
+                success = true,
+                message = "이미지가 업로드되었습니다.",
+                imageUrl = "/uploads/chats/$fileName",
+                fileName = fileName
+            )
+
+        } catch (e: IOException) {
+            logger.error("채팅 이미지 저장 실패", e)
+            throw RuntimeException("이미지 저장에 실패했습니다.")
+        }
+    }
+
+    // 채팅 이미지 업로드 (Base64)
+    fun uploadChatImageBase64(base64Image: String, userId: Long): UploadImageResponse {
+        logger.info("채팅 Base64 이미지 업로드: userId=$userId")
+
+        return try {
+            // Base64 디코딩
+            val imageBytes = Base64.getDecoder().decode(base64Image)
+
+            // 파일 크기 검사 (5MB 제한)
+            if (imageBytes.size > 5 * 1024 * 1024) {
+                throw IllegalArgumentException("이미지 크기는 5MB를 초과할 수 없습니다.")
+            }
+
+            // 파일명 생성
+            val fileName = "${UUID.randomUUID()}.jpg"
+
+            // 업로드 디렉토리 생성
+            val fullUploadPath = Paths.get(uploadDir, chatUploadPath)
+            if (!Files.exists(fullUploadPath)) {
+                Files.createDirectories(fullUploadPath)
+            }
+
+            // 파일 저장
+            val filePath = fullUploadPath.resolve(fileName)
+            Files.write(filePath, imageBytes)
+
+            logger.info("채팅 Base64 이미지 저장 완료: $fileName")
+
+            UploadImageResponse(
+                success = true,
+                message = "이미지가 업로드되었습니다.",
+                imageUrl = "/uploads/chats/$fileName",
+                fileName = fileName
+            )
+
+        } catch (e: IllegalArgumentException) {
+            throw e
+        } catch (e: Exception) {
+            logger.error("채팅 Base64 이미지 저장 실패", e)
+            throw RuntimeException("이미지 저장에 실패했습니다.")
+        }
+    }
+
+    // 이미지 파일 유효성 검사
+    private fun validateImageFile(file: MultipartFile) {
+        if (file.isEmpty) {
+            throw IllegalArgumentException("파일이 비어있습니다.")
+        }
+
+        // 파일 크기 제한 (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            throw IllegalArgumentException("파일 크기는 5MB를 초과할 수 없습니다.")
+        }
+
+        // 파일 타입 검사
+        val contentType = file.contentType
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw IllegalArgumentException("이미지 파일만 업로드 가능합니다.")
+        }
+
+        // 허용된 확장자 검사
+        val originalFilename = file.originalFilename ?: ""
+        val extension = originalFilename.substringAfterLast('.').lowercase()
+        val allowedExtensions = setOf("jpg", "jpeg", "png", "gif", "webp")
+
+        if (extension !in allowedExtensions) {
+            throw IllegalArgumentException("허용되지 않는 파일 형식입니다. (jpg, jpeg, png, gif, webp만 가능)")
+        }
     }
 }
